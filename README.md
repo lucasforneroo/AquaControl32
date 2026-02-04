@@ -1,25 +1,34 @@
-# AquaControl32
-Aplicacion web del proyecto universitario de manejo de microcontroladores ESP32 de manejo de temperatura y luz, el mismo esta estructurado en React + Vite como frontend y node.js + Express como backend. MySQL como base de datos
+   # AquaControl32
+# By Lucas Fornero and Julian Muller 
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![MQTT](https://img.shields.io/badge/MQTT-660066?style=for-the-badge&logo=mqtt&logoColor=white)
+![Mosquitto](https://img.shields.io/badge/Mosquitto-3C5280?style=for-the-badge&logo=eclipse-mosquitto&logoColor=white)
+![ESP32](https://img.shields.io/badge/ESP32-000000?style=for-the-badge&logo=espressif&logoColor=white)
+![Arduino](https://img.shields.io/badge/Arduino_IDE-00979D?style=for-the-badge&logo=arduino&logoColor=white)
 
-AquaControl32 es un proyecto educativo para monitorear y controlar variables críticas de un acuario (temperatura, iluminación y calidad del agua) usando un **ESP32** como dispositivo de borde y una **aplicación web** como dashboard. El repositorio actual contiene el **frontend en React + Vite** y documentación técnica para el flujo en tiempo real entre **ESP32 → MQTT → Node.js → UI**. El backend y el firmware pueden implementarse siguiendo las guías y ejemplos de este README.
+AquaControl32 es un proyecto educativo de la materia ingenieria 1 en la carrera de ingenieria en computacion en la UnRaf para monitorear y controlar variables críticas de un acuario (temperatura, iluminación y calidad del agua) usando un **ESP32** como dispositivo de borde y una **aplicación web** como dashboard. El repositorio actual contiene el **frontend en React + Vite**, un **backend Node.js + Express + MQTT** y documentación técnica para el flujo en tiempo real entre **ESP32 → MQTT → Node.js → UI**. El firmware puede implementarse siguiendo las guías y ejemplos de este README.
 
 > **Nota importante sobre el alcance del repo:**
 > - **Frontend:** incluido en este repositorio (carpeta `src/`).
-> - **Backend (Node.js/Express + MySQL):** descrito en esta documentación, pero **no está implementado** en el repositorio.
+> - **Backend (Node.js/Express + MQTT):** disponible dentro de `AquaControl32----template/src/BACKEND/backend`.
 > - **Firmware (Arduino IDE):** se incluye un **sketch de referencia** dentro de este README, pero **no hay archivo `.ino`** en el repositorio.
 
 ---
 
-## Índice
+## INDICE
 
 1. [Arquitectura general](#arquitectura-general)
 2. [Frontend (React + Vite)](#frontend-react--vite)
    - [Estructura de la UI](#estructura-de-la-ui)
    - [Cómo ejecutar el frontend](#cómo-ejecutar-el-frontend)
-3. [Backend (Node.js/Express + MySQL) — diseño propuesto](#backend-nodejsexpress--mysql--diseño-propuesto)
-   - [Responsabilidades](#responsabilidades)
-   - [Modelo de datos sugerido](#modelo-de-datos-sugerido)
-   - [Endpoints sugeridos](#endpoints-sugeridos)
+3. [Backend (Node.js/Express + MQTT) — implementación incluida](#backend-nodejsexpress--mqtt--implementación-incluida)
+   - [Qué hace el backend](#qué-hace-el-backend)
+   - [Cómo ejecutarlo](#cómo-ejecutarlo)
+   - [Endpoints disponibles](#endpoints-disponibles)
+   - [Eventos en tiempo real (WebSocket)](#eventos-en-tiempo-real-websocket)
 4. [MQTT con Mosquitto](#mqtt-con-mosquitto)
    - [Instalación y configuración](#instalación-y-configuración)
    - [Tópicos recomendados](#tópicos-recomendados)
@@ -39,7 +48,7 @@ La arquitectura propuesta (y documentada en `docs/esp32-node-realtime.md`) es:
 ```
 ESP32 (sensores/actuadores)
    └─ publica lecturas → MQTT (Mosquitto)
-            └─ Node.js se suscribe y guarda en MySQL
+            └─ Node.js se suscribe y normaliza métricas
                   └─ Node.js emite a la UI (WebSocket/SSE)
                         └─ Frontend React muestra dashboard
 ```
@@ -84,45 +93,73 @@ Luego abre el navegador en la URL que Vite indique (por defecto `http://localhos
 
 ---
 
-## Backend (Node.js/Express + MySQL) — diseño propuesto
+## Backend (Node.js/Express + MQTT) — implementación incluida
 
-El README original menciona Node.js/Express + MySQL como backend, pero **no existe implementación en este repositorio**. A continuación, se describe un diseño recomendado para que otro usuario pueda reconstruirlo.
+El backend real ya está en el repositorio, dentro de `AquaControl32----template/src/BACKEND/backend`. Está implementado con **Express**, **MQTT** y **WebSocket**, y su objetivo es recibir métricas desde el broker MQTT y enviarlas en tiempo real al frontend.
 
-### Responsabilidades
+### Qué hace el backend
 
-- **Suscribirse a MQTT** para recibir datos de sensores en tiempo real.
-- **Persistir datos** de telemetría en MySQL.
-- **Emitir eventos** al frontend (WebSocket o SSE).
-- **Exponer endpoints** REST para configuración, historial y control.
+- Se **conecta al broker MQTT** y se suscribe a un tópico configurable.
+- Mantiene en memoria el **último payload recibido** (temperatura, pH, luz).
+- Expone un **endpoint REST** para leer el último estado.
+- Emite actualizaciones en **tiempo real vía WebSocket** cuando llega nueva telemetría.
 
-### Modelo de datos sugerido
+### Cómo ejecutarlo
 
-Tabla `telemetria`:
+1. Entra a la carpeta del backend:
 
-| Campo        | Tipo        | Descripción                     |
-|--------------|-------------|---------------------------------|
-| id           | INT (PK)    | Identificador autoincremental   |
-| dispositivo  | VARCHAR     | ID o nombre del ESP32           |
-| temperatura  | FLOAT       | °C                              |
-| ph           | FLOAT       | pH                              |
-| luz          | FLOAT       | % o lux                         |
-| timestamp    | DATETIME    | Fecha/hora de la lectura        |
+```bash
+cd AquaControl32----template/src/BACKEND/backend
+```
 
-Tabla `alertas` (opcional):
+2. Instala dependencias:
 
-| Campo        | Tipo        | Descripción                     |
-|--------------|-------------|---------------------------------|
-| id           | INT (PK)    | Identificador                   |
-| tipo         | VARCHAR     | temperatura/ph/luz              |
-| mensaje      | VARCHAR     | Descripción de la alerta        |
-| timestamp    | DATETIME    | Fecha/hora de la alerta         |
+```bash
+npm install
+```
 
-### Endpoints sugeridos
+3. Configura variables de entorno (opcional):
 
-- `GET /api/telemetria?from=...&to=...` → historial
-- `GET /api/estado` → última lectura
-- `POST /api/config` → umbrales de alertas
-- `POST /api/actuadores` → comandos (luz, calefactor, bomba)
+- `HTTP_PORT` (por defecto 4000)
+- `MQTT_URL` (por defecto `mqtt://broker.hivemq.com`)
+- `MQTT_TOPIC` (por defecto `test/aquacontrol`)
+
+Ejemplo rápido:
+
+```bash
+MQTT_URL=mqtt://localhost:1883 MQTT_TOPIC=aquacontrol32/esp32/telemetria npm start
+```
+
+4. Inicia el servidor (según scripts disponibles):
+
+```bash
+npm run dev
+```
+
+> Si no tienes `dev`, usa `npm start`. Verifica los scripts en `AquaControl32----template/src/BACKEND/backend/package.json`.
+
+### Endpoints disponibles
+
+- `GET /health` → salud del servicio.
+- `GET /api/metrics` → último payload de telemetría en memoria.
+
+### Eventos en tiempo real (WebSocket)
+
+El backend inicia un **WebSocket server** en el mismo puerto HTTP. Cada vez que llega nueva telemetría por MQTT, transmite el payload al frontend con el tipo `metrics`.
+
+Ejemplo de mensaje emitido:
+
+```json
+{
+  "type": "metrics",
+  "data": {
+    "temperature": 26.4,
+    "ph": 7.2,
+    "lighting": 78,
+    "updatedAt": "2024-09-01T12:00:00Z"
+  }
+}
+```
 
 ---
 
@@ -184,8 +221,8 @@ Este sketch de referencia publica datos ficticios a MQTT. Debes ajustarlo a tus 
 #include <PubSubClient.h>
 
 // Configuración WiFi (MODIFICA ESTOS VALORES)
-const char* ssid = "TU RED WIFI";
-const char* password = "TU CONTRASEÑA";
+const char* ssid = "TU_RED_WIFI";
+const char* password = "TU_PASSWORD";
 
 // Configuración MQTT
 const char* mqtt_server = "broker.hivemq.com";  // Broker público de prueba
@@ -516,9 +553,14 @@ String buildJsonPayload() {
 }
 ```
 
-Librerías necesarias en Arduino IDE:
+Librerías necesarias en Arduino IDE (sensores y conectividad):
 - **WiFi** (incluida en ESP32 core)
-- **PubSubClient** (instalar desde Library Manager)
+- **PubSubClient** (MQTT)
+- **OneWire** + **DallasTemperature** (DS18B20 - temperatura)
+- **BH1750** o **Adafruit BH1750** (sensor de luz por I2C, opcional)
+- **DFRobot_PH** (sensor de pH, opcional)
+
+> Para sensores analógicos simples (nivel de agua, turbidez, LDR en divisor), puedes usar `analogRead` sin librerías adicionales.
 
 ---
 
@@ -568,7 +610,7 @@ Opcionales:
 1. **Configurar Mosquitto** en tu PC o en una Raspberry Pi.
 2. **Conectar el ESP32** con los sensores y cargar el sketch (Arduino IDE).
 3. **Levantar el broker MQTT** (Mosquitto).
-4. **Implementar el backend** (si deseas persistencia y control remoto).
+4. **Ejecutar el backend** (Express + MQTT).
 5. **Ejecutar el frontend** con `npm run dev`.
 
 ---
@@ -577,10 +619,10 @@ Opcionales:
 
 - **No llegan mensajes MQTT:** verifica IP del broker, puerto 1883 y la conexión WiFi.
 - **Lecturas inestables:** revisa alimentación, cables y resistencias pull-up.
-- **Dashboard sin datos:** asegúrate de implementar WebSocket/SSE en el backend.
+- **Dashboard sin datos:** verifica que el backend esté corriendo y que el tópico MQTT coincida.
 
 ---
 
 ## Créditos
 
-Proyecto académico: monitoreo y control de variables en acuari
+Proyecto académico: monitoreo y control de variables en acuarios usando ESP32.
