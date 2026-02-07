@@ -93,20 +93,21 @@ button:hover {
 }
 
 .hero__panel {
-  background: rgba(15, 23, 42, 0.7);
-  padding: 28px;
-  border-radius: 20px;
+  background: rgba(54, 79, 137, 0.7);
+  padding: 15px;
+  border-radius: 26px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.45);
   display: grid;
-  gap: 24px;
+  gap: 20px;
 }
 
 .panel__header {
   display: flex;
   justify-content: space-between;
-  font-size: 0.95rem;
+  font-size: 1.45rem;
   color: #cbd5f5;
+  font-weight:600;
 }
 
 .panel__status {
@@ -119,19 +120,20 @@ button:hover {
 
 .panel__metrics {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .panel__metrics article {
   background: rgba(2, 6, 23, 0.6);
   border-radius: 14px;
-  padding: 16px;
+  padding: 10px;
   border: 1px solid rgba(148, 163, 184, 0.1);
 }
 
 .panel__metrics h3 {
-  color: #94a3b8;
+  color: #ffffff;
   font-size: 0.9rem;
+  font-style: bold;
   margin-bottom: 8px;
 }
 

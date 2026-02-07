@@ -45,20 +45,20 @@ function App() {
           </p>
           <div className="hero__actions">
             <button className="primary">Conectar dispositivo</button>
-            <button className="ghost">Ver demostración</button>
+            <button className="ghost">Seleccionar dispositivo</button>
           </div>
           <div className="hero__stats">
             <div>
-              <strong>24/7</strong>
-              <span>Monitoreo continuo</span>
+              <p>Aumentar temperatura</p>
+              <span><button>+</button></span>
             </div>
             <div>
-              <strong>±0.3°C</strong>
-              <span>Precisión térmica</span>
+              <p>Disminuir temperatura</p>
+              <span><button>-</button></span>
             </div>
             <div>
-              <strong>5</strong>
-              <span>Alarmas configurables</span>
+              <p>Encender luces</p>
+              <span><button>ON</button></span>
             </div>
           </div>
         </div>
