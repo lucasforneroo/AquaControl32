@@ -1,162 +1,190 @@
-   # AquaControl32
+# AquaControl32
 # By Lucas Fornero 
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
 ![MQTT](https://img.shields.io/badge/MQTT-660066?style=for-the-badge&logo=mqtt&logoColor=white)
 ![Mosquitto](https://img.shields.io/badge/Mosquitto-3C5280?style=for-the-badge&logo=eclipse-mosquitto&logoColor=white)
 ![ESP32](https://img.shields.io/badge/ESP32-000000?style=for-the-badge&logo=espressif&logoColor=white)
 ![Arduino](https://img.shields.io/badge/Arduino_IDE-00979D?style=for-the-badge&logo=arduino&logoColor=white)
+![React](https://img.shields.io/badge/React_(Web)-61DAFB?style=for-the-badge&logo=react&logoColor=20232A)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-AquaControl32 es un proyecto educativo de la materia ingenieria 1 en la carrera de ingenieria en computacion en la UnRaf para monitorear y controlar variables críticas de un acuario (temperatura, iluminación y calidad del agua) usando un **ESP32** como dispositivo de borde y una **aplicación web** como dashboard. El repositorio actual contiene el **frontend en React + Vite**, un **backend Node.js + Express + MQTT** y documentación técnica para el flujo en tiempo real entre **ESP32 → MQTT → Node.js → UI**. El firmware puede implementarse siguiendo las guías y ejemplos de este README.
+AquaControl32 es un proyecto educativo de la materia Ingeniería 1 en la carrera de Ingeniería en Computación en la UnRaf para monitorear y controlar variables críticas de un acuario (temperatura, iluminación y calidad del agua) usando un **ESP32** como dispositivo de borde.
 
-> **Nota importante sobre el alcance del repo:**
-> - **Frontend:** incluido en este repositorio (carpeta `src/`).
-> - **Backend (Node.js/Express + MQTT):** disponible dentro de `AquaControl32----template/src/BACKEND/backend`.
-> - **Firmware (Arduino IDE):** se incluye un **sketch de referencia** dentro de este README, pero **no hay archivo `.ino`** en el repositorio.
+El proyecto cuenta con:
+- 📱 **App móvil** en **React Native + Expo** (v1.2) — ejecuta en dispositivos Android/iOS reales
+- 🌐 **App web** en **React + Vite** (v1.0) — versión original de dashboard 
+- ⚙️ **Backend Node.js + Express + MQTT + WebSocket** — puente entre ESP32 y las apps
+- 🔌 **Firmware ESP32** con sensor DS18B20 publicando vía MQTT
+
+> 📄 **[Ver changelog de v1.2 →](docs/new-version-1.2.md)**
+
+> **Nota sobre el alcance del repo:**
+> - **App Móvil (React Native + Expo):** carpeta `AquaControl32-Mobile/`
+> - **App Web (React + Vite):** carpeta `AquaControl32----template/src/`
+> - **Backend (Node.js/Express + MQTT):** carpeta `AquaControl32----template/backend/`
+> - **Firmware (Arduino IDE):** sketch de referencia incluido en este README
 
 ---
 
 ## INDICE
 
 1. [Arquitectura general](#arquitectura-general)
-2. [Frontend (React + Vite)](#frontend-react--vite)
-   - [Estructura de la UI](#estructura-de-la-ui)
-   - [Cómo ejecutar el frontend](#cómo-ejecutar-el-frontend)
-3. [Backend (Node.js/Express + MQTT) — implementación incluida](#backend-nodejsexpress--mqtt--implementación-incluida)
+2. [App Móvil (React Native + Expo)](#app-móvil-react-native--expo)
+   - [Estructura de la UI móvil](#estructura-de-la-ui-móvil)
+   - [Cómo ejecutar la app móvil](#cómo-ejecutar-la-app-móvil)
+3. [App Web (React + Vite)](#app-web-react--vite)
+   - [Cómo ejecutar la app web](#cómo-ejecutar-la-app-web)
+4. [Backend (Node.js/Express + MQTT + WebSocket)](#backend-nodejsexpress--mqtt--websocket)
    - [Qué hace el backend](#qué-hace-el-backend)
    - [Cómo ejecutarlo](#cómo-ejecutarlo)
-   - [Endpoints disponibles](#endpoints-disponibles)
    - [Eventos en tiempo real (WebSocket)](#eventos-en-tiempo-real-websocket)
-4. [MQTT con Mosquitto](#mqtt-con-mosquitto)
+5. [MQTT con Mosquitto](#mqtt-con-mosquitto)
    - [Instalación y configuración](#instalación-y-configuración)
    - [Tópicos recomendados](#tópicos-recomendados)
    - [Formato de mensajes](#formato-de-mensajes)
-5. [Firmware ESP32 (Arduino IDE) — ejemplo funcional](#firmware-esp32-arduino-ide--ejemplo-funcional)
-6. [Materiales de hardware y sensores](#materiales-de-hardware-y-sensores)
-7. [Conexiones recomendadas](#conexiones-recomendadas)
-8. [Procedimiento completo para ejecutar el proyecto](#procedimiento-completo-para-ejecutar-el-proyecto)
-9. [Troubleshooting](#troubleshooting)
+6. [Firmware ESP32 (Arduino IDE) — ejemplo funcional](#firmware-esp32-arduino-ide--ejemplo-funcional)
+7. [Materiales de hardware y sensores](#materiales-de-hardware-y-sensores)
+8. [Conexiones recomendadas](#conexiones-recomendadas)
+9. [Procedimiento completo para ejecutar el proyecto](#procedimiento-completo-para-ejecutar-el-proyecto)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Arquitectura general
 
-La arquitectura propuesta (y documentada en `docs/esp32-node-realtime.md`) es:
-
 ```
-ESP32 (sensores/actuadores)
-   └─ publica lecturas → MQTT (Mosquitto)
-            └─ Node.js se suscribe y normaliza métricas
-                  └─ Node.js emite a la UI (WebSocket/SSE)
-                        └─ Frontend React muestra dashboard
+ESP32 (sensor DS18B20)
+   │
+   │ publica temperaturas por MQTT
+   ▼
+Mosquitto (broker MQTT, puerto 1883)
+   │
+   │ backend se suscribe al topic
+   ▼
+Backend Node.js (Express, puerto 4000)
+   │
+   │ reenvía datos por WebSocket
+   ▼
+App Móvil (React Native + Expo)        App Web (React + Vite)
+   en Samsung A15 / dispositivo real       en navegador
 ```
 
-Este patrón es liviano para microcontroladores y permite **telemetría en tiempo real**, con historial y alertas configurables en el backend. Para más contexto sobre protocolos y variantes, consulta la documentación en `docs/esp32-node-realtime.md`.
+Este patrón es liviano para microcontroladores y permite **telemetría en tiempo real** con historial y alertas configurables en el backend.
 
 ---
 
-## Frontend (React + Vite)
+## App Móvil (React Native + Expo)
 
-El frontend es una **landing/demo de dashboard** ya maquetada para el proyecto. Está pensada como base para incorporar datos en tiempo real cuando el backend esté listo.
+> **v1.2** — Versión actual principal del proyecto
 
-### Estructura de la UI
+La app móvil fue migrada desde la versión web (React + Vite) a **React Native con Expo SDK 54**, permitiendo ejecución nativa en dispositivos Android e iOS.
 
-La interfaz principal está en `src/App.jsx` e incluye:
+### Estructura de la UI móvil
 
-- **Hero principal** con badge “Dashboard inteligente”, título y texto descriptivo del proyecto.
-- **Botones de acción**: “Conectar dispositivo” y “Ver demostración”.
-- **Métricas rápidas** (monitoreo 24/7, precisión térmica, alarmas configurables).
-- **Panel lateral de estado** con:
-  - Estado general (ej. “Estable”).
-  - Tres métricas destacadas (Temperatura, Iluminación, PH).
-  - Timeline de eventos (ej. encendido gradual, alertas, modo nocturno).
-- **Sección de features** con mensajes de control centralizado, alertas proactivas e historial.
+La interfaz está en `AquaControl32-Mobile/App.js` e incluye:
 
-Todo el contenido está actualmente **estático** en JSX, listo para conectarse a datos reales (por ejemplo, desde WebSocket) cuando se implemente el backend.
+- **Pantalla de introducción** animada con logo AQ32
+- **Dashboard principal** con diseño responsive (móvil y escritorio):
+  - Header con logo y botones de navegación
+  - Título "AquaControl 32" y subtítulo descriptivo
+  - **Control de temperatura** con botones +/- (incrementos de 0.5°C)
+  - **Control de luz** ON/OFF
+  - **Panel "Estado del acuario"** con indicador de conexión WebSocket
+  - **Métricas en tiempo real**: Temperatura, Iluminación, PH
+- **Pantalla de historia** del proyecto ("Nuestra Historia")
+- **Fondo animado** con partículas acuáticas
 
-### Cómo ejecutar el frontend
+### Componentes
+
+| Componente | Archivo | Función |
+|---|---|---|
+| `AnimatedBackground` | `src/components/AnimatedBackground.jsx` | Fondo animado con burbujas |
+| `Intro` | `src/components/Intro.jsx` | Splash screen animado |
+| `TemperatureControl` | `src/components/TemperatureControl.jsx` | Control de temperatura con +/- |
+| `AQ32logo` | `src/components/AQ32logo.jsx` | Logo SVG del proyecto |
+| `HistoryScreen` | `src/components/HistoryScreen.jsx` | Pantalla "Nuestra Historia" |
+
+### Cómo ejecutar la app móvil
 
 Requisitos:
-- Node.js 18+ (recomendado)
-- npm
-
-Pasos:
+- Node.js 18+
+- Expo CLI
+- Dispositivo físico con **Expo Go** o emulador Android
 
 ```bash
+cd AquaControl32-Mobile
+npm install
+npx expo start
+```
+
+> **⚠️ Importante para dispositivos físicos:** Editar `src/constants/config.js` y cambiar la IP a la de tu PC en la red local:
+> ```js
+> WS_URL: 'ws://TU_IP_LOCAL:4000'
+> ```
+
+---
+
+## App Web (React + Vite)
+
+> **v1.0** — Versión original del proyecto (landing/demo de dashboard)
+
+La versión web original está en `AquaControl32----template/src/` y funciona como dashboard en navegador.
+
+### Cómo ejecutar la app web
+
+```bash
+cd AquaControl32----template
 npm install
 npm run dev
 ```
 
-Luego abre el navegador en la URL que Vite indique (por defecto `http://localhost:5173`).
+Luego abre el navegador en `http://localhost:5173`.
 
 ---
 
-## Backend (Node.js/Express + MQTT) — implementación incluida
+## Backend (Node.js/Express + MQTT + WebSocket)
 
-El backend real ya está en el repositorio, dentro de `AquaControl32----template/src/BACKEND/backend`. Está implementado con **Express**, **MQTT** y **WebSocket**, y su objetivo es recibir métricas desde el broker MQTT y enviarlas en tiempo real al frontend.
+El backend está en `AquaControl32----template/backend/` y actúa como **puente entre el ESP32 y las aplicaciones** (móvil y web).
 
 ### Qué hace el backend
 
-- Se **conecta al broker MQTT** y se suscribe a un tópico configurable.
-- Mantiene en memoria el **último payload recibido** (temperatura, pH, luz).
-- Expone un **endpoint REST** para leer el último estado.
-- Emite actualizaciones en **tiempo real vía WebSocket** cuando llega nueva telemetría.
+- Se **conecta al broker MQTT** (Mosquitto) y se suscribe al topic `aquacontrol32/esp32/#`
+- Mantiene en memoria el **último payload recibido** (temperatura)
+- Expone un **servidor WebSocket** en el puerto 4000 para enviar datos en tiempo real
+- Implementa **heartbeat** (ping cada 30s) para mantener conexiones activas
+- Escucha en **0.0.0.0** para aceptar conexiones desde dispositivos en la red local
 
 ### Cómo ejecutarlo
 
-1. Entra a la carpeta del backend:
-
 ```bash
-cd AquaControl32----template/src/BACKEND/backend
-```
-
-2. Instala dependencias:
-
-```bash
+cd AquaControl32----template/backend
 npm install
+node index.js
 ```
 
-3. Configura variables de entorno (opcional):
-
-- `HTTP_PORT` (por defecto 4000)
-- `MQTT_URL` (por defecto `mqtt://broker.hivemq.com`)
-- `MQTT_TOPIC` (por defecto `test/aquacontrol`)
-
-Ejemplo rápido:
-
-```bash
-MQTT_URL=mqtt://localhost:1883 MQTT_TOPIC=aquacontrol32/esp32/telemetria npm start
+Deberías ver:
+```
+[HTTP] servidor escuchando en http://0.0.0.0:4000
+[MQTT] conectado a mqtt://localhost:1883
+[MQTT] suscrito a aquacontrol32/esp32/#
 ```
 
-4. Inicia el servidor (según scripts disponibles):
-
-```bash
-npm run dev
-```
-
-> Si no tienes `dev`, usa `npm start`. Verifica los scripts en `AquaControl32----template/src/BACKEND/backend/package.json`.
-
-### Endpoints disponibles
-
-- `GET /health` → salud del servicio.
-- `GET /api/metrics` → último payload de telemetría en memoria.
+> **⚠️ El backend debe estar corriendo ANTES de abrir la app móvil.** Son dos procesos separados que corren en terminales distintas.
 
 ### Eventos en tiempo real (WebSocket)
 
-El backend inicia un **WebSocket server** en el mismo puerto HTTP. Cada vez que llega nueva telemetría por MQTT, transmite el payload al frontend con el tipo `metrics`.
-
-Ejemplo de mensaje emitido:
+Cada vez que llega nueva telemetría por MQTT, el backend transmite al cliente:
 
 ```json
 {
   "type": "metrics",
   "data": {
     "temperature": 26.4,
-    "ph": 7.2,
-    "lighting": 78,
-    "updatedAt": "2024-09-01T12:00:00Z"
+    "updatedAt": "2026-02-11T12:00:00Z"
   }
 }
 ```
@@ -167,14 +195,12 @@ Ejemplo de mensaje emitido:
 
 ### Instalación y configuración
 
-Se recomienda **Mosquitto** como broker MQTT. El repositorio incluye un archivo de ejemplo en `AquaControl32----template/mosquitto.conf`:
+Se recomienda **Mosquitto** como broker MQTT. Configuración mínima:
 
 ```
 allow_anonymous true
 listener 1883
 ```
-
-Con este archivo puedes ejecutar un broker local rápido para pruebas.
 
 ### Tópicos recomendados
 
@@ -189,11 +215,12 @@ Ejemplo JSON publicado por el ESP32:
 
 ```json
 {
-  "device_id": "esp32-001",
-  "temperature": 26.4,
-  "ph": 7.2,
-  "light": 78,
-  "timestamp": "2024-09-01T12:00:00Z"
+  "timestamp": 123456,
+  "numSensors": 1,
+  "temps": [
+    { "id": 1, "addr": "0x28FF...", "temp": 26.40 }
+  ],
+  "stats": { "min": 25.00, "max": 27.50, "avg": 26.25 }
 }
 ```
 
@@ -206,7 +233,7 @@ Recomendaciones:
 
 ## Firmware ESP32 (Arduino IDE) — ejemplo funcional
 
-Este sketch de referencia publica datos ficticios a MQTT. Debes ajustarlo a tus sensores reales.
+Este sketch de referencia lee temperaturas reales del sensor DS18B20 y las publica por MQTT.
 
 ```cpp
 /*
@@ -607,22 +634,64 @@ Opcionales:
 
 ## Procedimiento completo para ejecutar el proyecto
 
-1. **Configurar Mosquitto** en tu PC o en una Raspberry Pi.
-2. **Conectar el ESP32** con los sensores y cargar el sketch (Arduino IDE).
-3. **Levantar el broker MQTT** (Mosquitto).
-4. **Ejecutar el backend** (Express + MQTT).
-5. **Ejecutar el frontend** con `npm run dev`.
+### Opción A: App Móvil (recomendado)
+
+1. **Configurar Mosquitto** en tu PC (broker MQTT en puerto 1883)
+2. **Conectar el ESP32** con los sensores y cargar el sketch desde Arduino IDE
+3. **Iniciar el backend** (Terminal 1):
+   ```bash
+   cd AquaControl32----template/backend
+   npm install
+   node index.js
+   ```
+4. **Iniciar la app móvil** (Terminal 2):
+   ```bash
+   cd AquaControl32-Mobile
+   npm install
+   npx expo start
+   ```
+5. Escanear el QR con **Expo Go** en tu celular Android/iOS
+
+> ⚠️ El celular y la PC deben estar en la **misma red WiFi**. Configurar la IP en `AquaControl32-Mobile/src/constants/config.js`.
+
+### Opción B: App Web
+
+1. Seguir pasos 1-3 de la Opción A
+2. Ejecutar el frontend web:
+   ```bash
+   cd AquaControl32----template
+   npm install
+   npm run dev
+   ```
+3. Abrir `http://localhost:5173` en el navegador
 
 ---
 
 ## Troubleshooting
 
-- **No llegan mensajes MQTT:** verifica IP del broker, puerto 1883 y la conexión WiFi.
-- **Lecturas inestables:** revisa alimentación, cables y resistencias pull-up.
-- **Dashboard sin datos:** verifica que el backend esté corriendo y que el tópico MQTT coincida.
+- **"WebSocket error" en la app móvil:**
+  - Verificar que el backend esté corriendo (`node index.js`)
+  - Verificar que la IP en `config.js` sea la IP correcta de tu PC
+  - Verificar que el celular esté en la misma red WiFi
+  - Revisar si el Firewall de Windows bloquea el puerto 4000
+- **No llegan mensajes MQTT:** verificar IP del broker, puerto 1883 y la conexión WiFi del ESP32
+- **Lecturas inestables:** revisar alimentación, cables y resistencias pull-up
+- **Dashboard sin datos:** verificar que el backend esté corriendo y que el tópico MQTT coincida (`aquacontrol32/esp32/#`)
+
+---
+
+## Versiones
+
+| Versión | Stack | Descripción |
+|---------|-------|-------------|
+| **v1.0** | React + Vite | Dashboard web original |
+| **v1.2** | React Native + Expo | App móvil nativa + backend mejorado |
+
+📄 [Ver detalle de cambios en v1.2 →](docs/new-version-1.2.md)
 
 ---
 
 ## Créditos
 
-Proyecto académico: monitoreo y control de variables en acuarios usando ESP32.
+Proyecto académico de la materia Ingeniería 1 — Universidad Nacional de Rafaela (UnRaf).
+Monitoreo y control de variables en acuarios usando ESP32.
