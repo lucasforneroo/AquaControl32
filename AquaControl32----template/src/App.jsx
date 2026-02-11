@@ -1,13 +1,22 @@
+import React from 'react';
 import { useState, useEffect } from 'react'
+import AnimatedBackground from './Components/AnimatedBackground';
+import TemperatureControl from './Components/TemperatureControl';
+import AQ32logo from './Components/AQ32logo';
+import Intro from './Components/Intro';
 import './App.css'
 
 function App() {
+  const [showIntro, setShowIntro] = useState(true);
   const [metrics, setMetrics] = useState({
     temperature: 26.4,
     ph: 7.2,
     lighting: 78,
     updatedAt: null
   })
+
+  // Estado para temperatura objetivo controlada por el usuario
+  const [targetTemperature, setTargetTemperature] = useState(26.4);
 
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:4000')
@@ -16,6 +25,10 @@ function App() {
       const message = JSON.parse(event.data)
       if (message.type === 'metrics') {
         setMetrics(message.data)
+        // Actualizar temperatura objetivo si viene del servidor
+        if (message.data.temperature) {
+          setTargetTemperature(message.data.temperature)
+        }
       }
     }
 
@@ -32,11 +45,50 @@ function App() {
     }
   }, [])
 
+  // Funciones para controlar la temperatura
+  const handleIncreaseTemp = () => {
+    setTargetTemperature(prev => {
+      const newTemp = Math.round((prev + 0.5) * 10) / 10;
+      console.log('Aumentando temperatura a:', newTemp);
+      return newTemp;
+    });
+  };
+
+  const handleDecreaseTemp = () => {
+    setTargetTemperature(prev => {
+      const newTemp = Math.round((prev - 0.5) * 10) / 10;
+      console.log('Disminuyendo temperatura a:', newTemp);
+      return newTemp;
+    });
+  };
+
+  // ✅ FUNCIÓN para terminar la intro
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+  };
+
+  // ✅ SI showIntro es true, MOSTRAR SOLO LA INTRO
+  if (showIntro) {
+    return <Intro onComplete={handleIntroComplete} />;
+  }
+
+  // ✅ SI showIntro es false, MOSTRAR LA APP NORMAL
   return (
+    <>
+    <AnimatedBackground />
     <div className="app">
+  
+      
       <header className="hero">
         <div className="hero__content">
-          <span className="hero__badge">Dashboard inteligente</span>
+
+          
+          <div><button className="log">login</button></div>
+          <div><button className="history">Nuestra Historia</button></div>
+          <div className="hero__logo">
+          <AQ32logo />
+          </div>
+          <span className="hero__badge"></span>
           <h1>AquaControl 32</h1>
           <p>
             AquaControl32 es una plataforma para supervisar y controlar temperatura, luz y
@@ -48,17 +100,16 @@ function App() {
             <button className="ghost">Seleccionar dispositivo</button>
           </div>
           <div className="hero__stats">
-            <div>
-              <p>Aumentar temperatura</p>
-              <span><button>+</button></span>
+            <div className="temp-control">
+              <TemperatureControl 
+                temperature={targetTemperature}
+                onIncrease={handleIncreaseTemp}
+                onDecrease={handleDecreaseTemp}
+              />
             </div>
-            <div>
-              <p>Disminuir temperatura</p>
-              <span><button>-</button></span>
-            </div>
-            <div>
-              <p>Encender luces</p>
+            <div className="light-control">
               <span><button>ON</button></span>
+              <span><button>OFF</button></span>
             </div>
           </div>
         </div>
@@ -71,60 +122,21 @@ function App() {
             <article>
               <h3>Temperatura</h3>
               <p>{metrics.temperature ? `${metrics.temperature}°C` : 'N/A'}</p>
-              <span>Objetivo 26°C</span>
             </article>
             <article>
               <h3>Iluminación</h3>
               <p>{metrics.lighting ? `${metrics.lighting}%` : 'N/A'}</p>
-              <span>Modo Amanecer</span>
             </article>
             <article>
               <h3>PH</h3>
               <p>{metrics.ph || 'N/A'}</p>
-              <span>Balanceado</span>
             </article>
-          </div>
-          <div className="panel__timeline">
-            <div>
-              <span>08:00</span>
-              <span>Encendido gradual</span>
-            </div>
-            <div>
-              <span>12:30</span>
-              <span>Alerta nivel agua</span>
-            </div>
-            <div>
-              <span>18:00</span>
-              <span>Modo nocturno</span>
-            </div>
           </div>
         </div>
       </header>
 
-      <section className="features">
-        <article>
-          <h2>Control centralizado</h2>
-          <p>
-            Gestiona sensores, actuadores y rutinas desde un único panel con accesos rápidos y
-            vistas personalizadas.
-          </p>
-        </article>
-        <article>
-          <h2>Alertas proactivas</h2>
-          <p>
-            Recibe notificaciones inteligentes cuando una métrica sale de rango y activa
-            respuestas automáticas.
-          </p>
-        </article>
-        <article>
-          <h2>Historial detallado</h2>
-          <p>
-            Visualiza tendencias de temperatura, iluminación y calidad del agua para optimizar
-            el bienestar de tu ecosistema.
-          </p>
-        </article>
-      </section>
     </div>
+    </>
   )
 }
 

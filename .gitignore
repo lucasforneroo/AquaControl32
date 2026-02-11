@@ -1,0 +1,32 @@
+# Dependencias
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Builds nativos
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.kotlin/
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+.env*.local
+
+# Metro
+.metro-health-check*
