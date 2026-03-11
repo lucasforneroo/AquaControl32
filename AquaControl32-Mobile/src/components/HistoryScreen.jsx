@@ -4,7 +4,6 @@ import { ArrowLeft, Instagram, Linkedin, Github, Mail } from 'lucide-react-nativ
 import AnimatedBackground from './AnimatedBackground';
 
 const { width } = Dimensions.get('window');
-const isDesktop = width > 900;
 
 const HistoryScreen = ({ onBack }) => {
 
@@ -21,7 +20,6 @@ const HistoryScreen = ({ onBack }) => {
 
     return (
         <View style={styles.container}>
-            {/* Background is reused if desired, or we can make it static black */}
             <AnimatedBackground />
 
             <SafeAreaView style={styles.safeArea}>
@@ -71,97 +69,25 @@ const HistoryScreen = ({ onBack }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    safeArea: {
-        flex: 1,
-    },
-    header: {
-        padding: 20,
-        marginTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    },
+    container: { flex: 1, backgroundColor: '#000000' },
+    safeArea: { flex: 1 },
+    header: { padding: 20, marginTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
     backButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        alignSelf: 'flex-start',
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(148, 163, 184, 0.2)',
+        flexDirection: 'row', gap: 10, alignSelf: 'flex-start',
+        backgroundColor: 'rgba(15, 23, 42, 0.6)', paddingVertical: 8, paddingHorizontal: 16,
+        borderRadius: 8, borderWidth: 1, borderColor: 'rgba(148, 163, 184, 0.2)',
     },
-    backText: {
-        color: '#94a3b8',
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    content: {
-        padding: 20,
-        alignItems: 'center',
-        maxWidth: 800,
-        alignSelf: 'center',
-        width: '100%',
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#f8fafc',
-        marginBottom: 30,
-        textAlign: 'center',
-        marginTop: 20,
-    },
-    card: {
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        borderRadius: 16,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(148, 163, 184, 0.2)',
-        width: '100%',
-        gap: 20,
-    },
-    paragraph: {
-        color: '#cbd5e1',
-        fontSize: 16,
-        lineHeight: 24,
-        textAlign: 'justify',
-    },
-    socialSection: {
-        marginTop: 30,
-        width: '100%',
-        alignItems: 'center',
-        gap: 15,
-    },
-    socialTitle: {
-        color: '#94a3b8',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    socialRow: {
-        flexDirection: 'row',
-        gap: 20,
-    },
-    socialButton: {
-        padding: 12,
-        backgroundColor: 'rgba(30, 41, 59, 0.5)',
-        borderRadius: 50, // Circle
-        borderWidth: 1,
-        borderColor: 'rgba(148, 163, 184, 0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    footer: {
-        marginTop: 40,
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    footerText: {
-        color: '#64748b',
-        fontSize: 14,
-    }
+    backText: { color: '#94a3b8', fontSize: 16, fontWeight: '500' },
+    content: { padding: 20, alignItems: 'center', maxWidth: 800, alignSelf: 'center', width: '100%' },
+    title: { fontSize: 32, fontWeight: 'bold', color: '#f8fafc', marginBottom: 30, textAlign: 'center', marginTop: 20 },
+    card: { backgroundColor: 'rgba(15, 23, 42, 0.6)', borderRadius: 16, padding: 24, borderWidth: 1, borderColor: 'rgba(148, 163, 184, 0.2)', width: '100%', gap: 20 },
+    paragraph: { color: '#cbd5e1', fontSize: 16, lineHeight: 24, textAlign: 'justify' },
+    socialSection: { marginTop: 30, width: '100%', alignItems: 'center', gap: 15 },
+    socialTitle: { color: '#94a3b8', fontSize: 18, fontWeight: '600' },
+    socialRow: { flexDirection: 'row', gap: 20 },
+    socialButton: { padding: 12, backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: 50, borderWidth: 1, borderColor: 'rgba(148, 163, 184, 0.2)', alignItems: 'center', justifyContent: 'center' },
+    footer: { marginTop: 40, alignItems: 'center', marginBottom: 20 },
+    footerText: { color: '#64748b', fontSize: 14 }
 });
 
 export default HistoryScreen;

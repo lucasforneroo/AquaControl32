@@ -8,9 +8,9 @@ const Intro = ({ onComplete }) => {
 
     // Animated values
     const logoOpacity = useRef(new Animated.Value(0)).current;
-    const logoScale = useRef(new Animated.Value(0.8)).current;
+    const logoScale = useRef(new Animated.Value(1.8)).current;
     const linesOpacity = useRef(new Animated.Value(0)).current;
-    const linesScale = useRef(new Animated.Value(0)).current;
+    const linesScale = useRef(new Animated.Value(2)).current;
 
     useEffect(() => {
         // Sequence
@@ -30,17 +30,17 @@ const Intro = ({ onComplete }) => {
                 // Phase 2: Expand lines and logo slightly
                 Animated.parallel([
                     Animated.timing(linesOpacity, {
-                        toValue: 1,
+                        toValue: 2,
                         duration: 500,
                         useNativeDriver: true,
                     }),
                     Animated.timing(linesScale, {
-                        toValue: 1,
+                        toValue: 2,
                         duration: 800,
                         useNativeDriver: true,
                     }),
                     Animated.spring(logoScale, {
-                        toValue: 1,
+                        toValue: 2,
                         friction: 5,
                         useNativeDriver: true,
                     }),

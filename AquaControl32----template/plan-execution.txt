@@ -1,0 +1,18 @@
+# Cómo iniciar el Backend y Frontend correctamente
+
+## Opción 1: Iniciar Backend (Servidor)
+Abre una terminal y ejecuta:
+
+cd C:\Users\USER\Desktop\AquaControl32\AquaControl32----template\backend
+node src/index.js
+
+## Opción 2: Iniciar Frontend (Aplicación Móvil)
+Abre otra terminal (sin cerrar la del backend) y ejecuta:
+
+cd C:\Users\USER\Desktop\AquaControl32\AquaControl32-Mobile
+npx expo start --tunnel
+
+---
+**Notas importantes:**
+- El backend debe iniciarse desde la carpeta `backend`, no desde `backend/src`.
+- Si da error de puerto en uso (EADDRINUSE), asegúrate de cerrar otras terminales que estén corriendo el servidornode.

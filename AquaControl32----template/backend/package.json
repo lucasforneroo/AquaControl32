@@ -1,15 +1,48 @@
 {
   "name": "aquacontrol32-backend",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
+  "description": "Backend para AquaControl32 - Sistema de monitoreo en tiempo real de temperatura e iluminación con ESP32, MQTT, WebSocket y Google Auth",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "node index.js"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"No tests yet\" && exit 0"
   },
+  "keywords": [
+    "aquacontrol",
+    "iot",
+    "esp32",
+    "temperature",
+    "lighting",
+    "mqtt",
+    "websocket",
+    "express",
+    "postgresql",
+    "realtime"
+  ],
+  "author": "Lucas",
+  "license": "MIT",
   "dependencies": {
-    "cors": "^2.8.5",
+    "bonjour-service": "^1.3.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "express": "^4.19.2",
+    "express-session": "^1.19.0",
+    "google-auth-library": "^9.6.3",
+    "jsonwebtoken": "^9.0.2",
     "mqtt": "^5.9.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.18.0",
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }

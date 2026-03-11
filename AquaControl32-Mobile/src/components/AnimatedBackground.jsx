@@ -74,36 +74,6 @@ const AnimatedBackground = () => {
         };
     }, []);
 
-    // Generate lines based on current particle positions
-    const renderLines = () => {
-        const lines = [];
-        const particles = particlesRef.current;
-
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-
-                if (Math.abs(dx) > 80 || Math.abs(dy) > 80) continue;
-
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 80) {
-                    lines.push(
-                        <Line
-                            key={`line-${i}-${j}`}
-                            x1={particles[i].x}
-                            y1={particles[i].y}
-                            x2={particles[j].x}
-                            y2={particles[j].y}
-                            stroke="rgba(0, 168, 255, 0.15)"
-                            strokeWidth="0.5"
-                        />
-                    );
-                }
-            }
-        }
-        return lines;
-    };
 
     // Calculate laser path string
     const getLaserPath = () => {
@@ -149,31 +119,70 @@ const AnimatedBackground = () => {
                 <Rect x="0" y="0" width="100%" height="100%" fill="url(#abyssGrad)" />
 
                 {/* Particles */}
-                {particlesRef.current.map((p, i) => (
-                    p.type === 'circle' ? (
-                        <Circle
-                            key={i}
-                            cx={p.x}
-                            cy={p.y}
-                            r={p.size}
-                            fill="#00ffe5ff"
-                            opacity={p.opacity}
-                        />
-                    ) : (
-                        <Rect
-                            key={i}
-                            x={p.x - p.size / 2}
-                            y={p.y - p.size / 2}
-                            width={p.size}
-                            height={p.size}
-                            fill="#0088cc"
-                            opacity={p.opacity}
-                        />
-                    )
-                ))}
+                {particlesRef.current.map((p, i) => {
+                    // Calculate dynamic color based on time
+                    // Cycle every ~8 seconds (timeRef += 0.05 per frame)
+                    const factor = (Math.sin(timeRef.current * 0.4) + 1) / 2; // 0 to 1
+                    
+                    // Blue: rgb(0, 136, 204) -> Greenish: rgb(0, 255, 170)
+                    const r = 0;
+                    const g = Math.round(136 + (255 - 136) * factor);
+                    const b = Math.round(204 + (170 - 204) * factor);
+                    const dynamicColor = `rgb(${r}, ${g}, ${b})`;
+                    const dynamicLineColor = `rgba(${r}, ${g}, ${b}, 0.15)`;
+
+                    return (
+                        p.type === 'circle' ? (
+                            <Circle
+                                key={i}
+                                cx={p.x}
+                                cy={p.y}
+                                r={p.size}
+                                fill={dynamicColor}
+                                opacity={p.opacity}
+                            />
+                        ) : (
+                            <Rect
+                                key={i}
+                                x={p.x - p.size / 2}
+                                y={p.y - p.size / 2}
+                                width={p.size}
+                                height={p.size}
+                                fill={dynamicColor}
+                                opacity={p.opacity}
+                            />
+                        )
+                    );
+                })}
 
                 {/* Lines */}
-                {renderLines()}
+                {particlesRef.current.map((p1, i) => {
+                    const factor = (Math.sin(timeRef.current * 0.4) + 1) / 2;
+                    const g = Math.round(136 + (255 - 136) * factor);
+                    const b = Math.round(204 + (170 - 204) * factor);
+                    const dynamicLineColor = `rgba(0, ${g}, ${b}, 0.15)`;
+
+                    return particlesRef.current.slice(i + 1).map((p2, j) => {
+                        const dx = p1.x - p2.x;
+                        const dy = p1.y - p2.y;
+                        if (Math.abs(dx) > 80 || Math.abs(dy) > 80) return null;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 80) {
+                            return (
+                                <Line
+                                    key={`line-${i}-${i+1+j}`}
+                                    x1={p1.x}
+                                    y1={p1.y}
+                                    x2={p2.x}
+                                    y2={p2.y}
+                                    stroke={dynamicLineColor}
+                                    strokeWidth="0.5"
+                                />
+                            );
+                        }
+                        return null;
+                    });
+                })}
 
                 {/* Laser Line */}
                 {/* Glow */}

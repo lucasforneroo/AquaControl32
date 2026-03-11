@@ -11,16 +11,19 @@
 ![Arduino](https://img.shields.io/badge/Arduino_IDE-00979D?style=for-the-badge&logo=arduino&logoColor=white)
 ![React](https://img.shields.io/badge/React_(Web)-61DAFB?style=for-the-badge&logo=react&logoColor=20232A)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)
+![Google Cloud](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=000000&labelColor=white)
 
 AquaControl32 es un proyecto educativo de la materia Ingeniería 1 en la carrera de Ingeniería en Computación en la UnRaf para monitorear y controlar variables críticas de un acuario (temperatura, iluminación y calidad del agua) usando un **ESP32** como dispositivo de borde.
 
 El proyecto cuenta con:
-- 📱 **App móvil** en **React Native + Expo** (v1.2) — ejecuta en dispositivos Android/iOS reales
+- 📱 **App móvil** en **React Native + Expo** (v1.3) — ahora con Gráficos y Google Login
 - 🌐 **App web** en **React + Vite** (v1.0) — versión original de dashboard 
-- ⚙️ **Backend Node.js + Express + MQTT + WebSocket** — puente entre ESP32 y las apps
-- 🔌 **Firmware ESP32** con sensor DS18B20 publicando vía MQTT
+- ⚙️ **Backend Node.js + Express + MQTT + WebSocket + PostgreSQL** — infraestructura escalable con persistencia
+- 🔌 **Firmware ESP32** con sensor DS18B20 y auto-descubrimiento por mDNS
 
-> 📄 **[Ver changelog de v1.2 →](docs/new-version-1.2.md)**
+> 📄 **[Ver changelog de v1.3 →](docs/new-version-1.3.md)**
 
 > **Nota sobre el alcance del repo:**
 > - **App Móvil (React Native + Expo):** carpeta `AquaControl32-Mobile/`
@@ -79,7 +82,7 @@ Este patrón es liviano para microcontroladores y permite **telemetría en tiemp
 
 ## App Móvil (React Native + Expo)
 
-> **v1.2** — Versión actual principal del proyecto
+> **v1.3** — Versión actual principal con Gráficos y Auth
 
 La app móvil fue migrada desde la versión web (React + Vite) a **React Native con Expo SDK 54**, permitiendo ejecución nativa en dispositivos Android e iOS.
 
@@ -106,7 +109,8 @@ La interfaz está en `AquaControl32-Mobile/App.js` e incluye:
 | `Intro` | `src/components/Intro.jsx` | Splash screen animado |
 | `TemperatureControl` | `src/components/TemperatureControl.jsx` | Control de temperatura con +/- |
 | `AQ32logo` | `src/components/AQ32logo.jsx` | Logo SVG del proyecto |
-| `HistoryScreen` | `src/components/HistoryScreen.jsx` | Pantalla "Nuestra Historia" |
+| `HistoryScreen` | `src/components/HistoryScreen.jsx` | Pantalla "Nuestra Historia" (Proyecto) |
+| `MetricsHistoryScreen` | `src/components/MetricsHistoryScreen.jsx` | Gráficos e historial de sensores |
 
 ### Cómo ejecutar la app móvil
 
@@ -686,8 +690,9 @@ Opcionales:
 |---------|-------|-------------|
 | **v1.0** | React + Vite | Dashboard web original |
 | **v1.2** | React Native + Expo | App móvil nativa + backend mejorado |
+| **v1.3** | Stack v1.2 + PostgreSQL | Google Auth, Gráficos y Persistencia |
 
-📄 [Ver detalle de cambios en v1.2 →](docs/new-version-1.2.md)
+📄 [Ver detalle de cambios en v1.3 →](docs/new-version-1.3.md)
 
 ---
 
