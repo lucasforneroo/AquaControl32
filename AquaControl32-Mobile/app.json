@@ -19,10 +19,10 @@
       "bundleIdentifier": "com.lucas.aquacontrol32"
     },
     "android": {
+      "package": "com.lucas.aquacontrol32",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff",
-        "package": "com.lucas.aquacontrol32"
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
     },
@@ -31,6 +31,11 @@
     },
     "plugins": [
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e24eb940-09b1-4d8b-8e0a-d512ea492054"
+      }
+    }
   }
 }

@@ -1,14 +1,41 @@
 import express from "express";
 const router = express.Router();
-import { googleAuth, getProfile } from "../controllers/authController.js";
+import { 
+    googleAuth, 
+    register, 
+    login, 
+    getProfile, 
+    updatePushToken 
+} from "../controllers/authController.js";
 import { authenticate } from "../middlewares/authMiddleware.js";
+import { validate } from "../middlewares/validationMiddleware.js";
+import { googleAuthSchema, pushTokenSchema } from "../utils/schemas.js";
 
 /**
  * POST /auth/google
  * Autenticación con Google OAuth
  * Body: { token: "google_id_token" }
  */
-router.post("/google", googleAuth);
+router.post("/google", validate(googleAuthSchema), googleAuth);
+
+/**
+ * POST /auth/register
+ * Registro con email y contraseña
+ */
+router.post("/register", register);
+
+/**
+ * POST /auth/login
+ * Login con email y contraseña
+ */
+router.post("/login", login);
+
+/**
+ * POST /auth/push-token
+ * Guardar el Push Token de Expo para el usuario
+ * Body: { token: "ExponentPushToken[...]" }
+ */
+router.post("/push-token", authenticate, validate(pushTokenSchema), updatePushToken);
 
 /**
  * GET /auth/profile

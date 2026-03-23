@@ -1,4 +1,5 @@
 import { WebSocketServer } from 'ws';
+import logger from '../utils/logger.js';
 
 /**
  * Servicio para manejar el servidor WebSocket.
@@ -40,6 +41,21 @@ class WSService {
                 message: 'Conectado a AquaControl32 🌡️💡',
                 timestamp: new Date().toISOString(),
             }));
+
+            ws.on('message', async (data) => {
+                try {
+                    const message = JSON.parse(data.toString());
+                    if (message.type === 'command') {
+                        logger.info(`[WS] Comando recibido:`, message.payload);
+                        
+                        // Reenviar a MQTT
+                        const mqttService = (await import('./mqttService.js')).default;
+                        mqttService.sendCommand(message.payload);
+                    }
+                } catch (e) {
+                    logger.error('[WS] Error procesando mensaje del cliente:', e);
+                }
+            });
 
             ws.on('close', () => {
                 console.log(`[WS] Cliente desconectado ${clientIP}`);

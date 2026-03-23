@@ -19,8 +19,8 @@
 #include <Preferences.h>
 
 // ─── Configuración WiFi ───────────────────────────────────────
-const char* ssid = "Pablo Fornero 2.4GHz";
-const char* password = "221233601607";
+const char* ssid = "Fibertel WiFi764 2.4GHz";
+const char* password = "0142601491";
 
 // ─── Botón de Reset ──────────────────────────────────────────
 #define RESET_BUTTON_PIN 0  // GPIO0 = botón BOOT que ya tiene el ESP32
@@ -30,17 +30,13 @@ const char* password = "221233601607";
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-// ─── Control de Iluminación ──────────────────────────────────
-#define LIGHT_PIN 2  // GPIO 2 (LED interno o Relay)
-bool lightStatus = false;
-
 // ─── Clientes ────────────────────────────────────────────────
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 Preferences prefs;
 
 // ─── Variables globales ───────────────────────────────────────
-String mqtt_server_ip = "192.168.0.105"; // IP de tu PC detectada por el backend
+String mqtt_server_ip = "192.168.0.13"; // IP de fallback
 const char* mqtt_topic_data    = "aquacontrol32/esp32/temp";
 const char* mqtt_topic_cmd     = "aquacontrol32/esp32/cmd";
 const char* mqtt_topic_status  = "aquacontrol32/esp32/status";
@@ -91,10 +87,6 @@ void setup() {
     sensors.getAddress(sensorAddresses[i], i);
     sensors.setResolution(sensorAddresses[i], 12);
   }
-
-  // Configurar Pin de Luz
-  pinMode(LIGHT_PIN, OUTPUT);
-  digitalWrite(LIGHT_PIN, LOW); // Apagado por defecto
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -161,23 +153,6 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     delay(500);
     ESP.restart();
   }
-
-  // Comando: {"light": "on"} o {"light": "off"}
-  if (msg.indexOf("\"light\":") >= 0) {
-    if (msg.indexOf("on") >= 0) {
-      lightStatus = true;
-      digitalWrite(LIGHT_PIN, HIGH);
-      Serial.println("[LIGHT] Encendido");
-    } else {
-      lightStatus = false;
-      digitalWrite(LIGHT_PIN, LOW);
-      Serial.println("[LIGHT] Apagado");
-    }
-    
-    // Notificar cambio inmediato
-    String payload = buildJsonPayload();
-    mqttClient.publish(mqtt_topic_data, payload.c_str());
-  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -204,43 +179,25 @@ void reconnectMQTT() {
 // mDNS: Descubrir IP del servidor MQTT
 // ════════════════════════════════════════════════════════════════
 void descubrirServidor() {
-  Serial.println("[mDNS] Buscando servidor 'aquacontrol'...");
-  
-  if (!MDNS.begin("esp32-aquacontrol")) {
-    Serial.println("[mDNS] Error inicializando mDNS");
-    return;
-  }
-
-  // 1. Intentar encontrar por servicio HTTP (Anunciado por el backend)
-  Serial.println("[mDNS] Consultando servicios _http._tcp...");
+  if (!MDNS.begin("esp32-aquacontrol")) return;
   int n = MDNS.queryService("http", "tcp");
-  
   if (n > 0) {
     for (int i = 0; i < n; i++) {
-        String hostname = MDNS.hostname(i);
-        Serial.printf("[mDNS] Servicio encontrado en %s (%s:%d)\n", 
-                      hostname.c_str(), 
-                      MDNS.address(i).toString().c_str(), 
-                      MDNS.port(i));
-        
-        // Si el nombre coincide o contiene "aquacontrol"
-        if (hostname.indexOf("aquacontrol") >= 0) {
-            mqtt_server_ip = MDNS.address(i).toString();
-            Serial.println("✅ [mDNS] Servidor principal seleccionado: " + mqtt_server_ip);
-            return;
+      String hostname = MDNS.hostname(i);
+      if (hostname.indexOf("aquacontrol") >= 0 || i == 0) {
+        IPAddress result = MDNS.queryHost(hostname);
+        if (result.toString() != "0.0.0.0") {
+          mqtt_server_ip = result.toString();
+          Serial.println("[mDNS] Servidor encontrado: " + mqtt_server_ip);
+          return;
         }
+      }
     }
   }
-
-  // 2. Intentar resolución directa de host 'aquacontrol.local'
-  Serial.println("[mDNS] No se halló servicio específico, intentando 'aquacontrol.local'...");
-  IPAddress hostIP = MDNS.queryHost("aquacontrol");
-  
-  if (hostIP.toString() != "0.0.0.0") {
-    mqtt_server_ip = hostIP.toString();
-    Serial.println("✅ [mDNS] Host encontrado: " + mqtt_server_ip);
-  } else {
-    Serial.println("⚠️ [mDNS] No se pudo encontrar el servidor. Usando IP fija de respaldo: " + mqtt_server_ip);
+  IPAddress fallback = MDNS.queryHost("aquacontrol");
+  if (fallback.toString() != "0.0.0.0") {
+    mqtt_server_ip = fallback.toString();
+    Serial.println("[mDNS] Fallback: " + mqtt_server_ip);
   }
 }
 
@@ -248,9 +205,7 @@ void descubrirServidor() {
 // PAYLOAD JSON
 // ════════════════════════════════════════════════════════════════
 String buildJsonPayload() {
-  String j = "{\"numSensors\":" + String(numSensores) + 
-             ",\"light\":\"" + String(lightStatus ? "on" : "off") + "\"" +
-             ",\"temps\":[";
+  String j = "{\"numSensors\":" + String(numSensores) + ",\"temps\":[";
   for (int i = 0; i < numSensores; i++) {
     if (i > 0) j += ",";
     j += "{\"id\":" + String(i + 1) + ",\"temp\":" + (isnan(lastTemps[i]) ? String("null") : String(lastTemps[i], 2)) + "}";

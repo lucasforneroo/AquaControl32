@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, ScrollView, SafeAreaView,
-  StatusBar, TouchableOpacity, useWindowDimensions, Alert, Linking, TextInput, ActivityIndicator
+  StatusBar, TouchableOpacity, useWindowDimensions, Alert, Linking, TextInput
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
@@ -15,7 +15,6 @@ import MetricsHistoryScreen from './src/components/MetricsHistoryScreen';
 import AquariumManagementScreen from './src/components/AquariumManagementScreen';
 import SkeletonLoader from './src/components/SkeletonLoader';
 import OfflineBanner from './src/components/OfflineBanner';
-import LightingControl from './src/components/LightingControl';
 import { Thermometer, Sun, Droplets, Settings, Activity, Settings2 } from 'lucide-react-native';
 
 import * as Haptics from 'expo-haptics';
@@ -41,7 +40,7 @@ Notifications.setNotificationHandler({
 
 // ─── Configuración ──────────────────────────────────────────
 const GOOGLE_CLIENT_ID = '703002297863-rj0ktbrtk6ua1pgcg871mlaid9qafhkv.apps.googleusercontent.com';
-const BACKEND_URL = CONFIG.BACKEND_URL;
+const BACKEND_URL = 'http://192.168.0.13:4000';
 
 export default function App() {
 
@@ -97,7 +96,7 @@ export default function App() {
   const [metrics, setMetrics] = useState({
     temperature: null,
     ph: null,
-    light: null, // 'on' o 'off'
+    lighting: null,
     updatedAt: null
   });
   const [targetTemperature, setTargetTemperature] = useState(26.0);
@@ -128,9 +127,6 @@ export default function App() {
   // ─── Obtener configuración global ───────────────────────────
   useEffect(() => {
     fetchSettings();
-    // Safety timeout: forzar fin de carga tras 5 segundos si falla la red
-    const timer = setTimeout(() => setIsLoadingData(false), 5000);
-    return () => clearTimeout(timer);
   }, []);
 
   const fetchSettings = async () => {
@@ -183,7 +179,6 @@ export default function App() {
 
       if (storedUser && storedToken) {
         setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true); // <--- AGREGAR ESTO PARA QUE CARGUE EL DASHBOARD
         console.log('✅ Sesión restaurada de AsyncStorage');
         setTimeout(() => registerForPushNotificationsAsync(), 2000);
       }
@@ -366,7 +361,6 @@ export default function App() {
       }
 
       console.log('Connecting to:', CONFIG.WS_URL);
-      console.log(`[WS] Intentando conectar a: ${CONFIG.WS_URL}...`);
       ws.current = new WebSocket(CONFIG.WS_URL);
 
       ws.current.onopen = () => {
@@ -416,22 +410,6 @@ export default function App() {
     }
   };
 
-  const handleToggleLight = (newStatus) => {
-    if (!connected || !ws.current) {
-        Alert.alert('Error', 'No hay conexión con el servidor');
-        return;
-    }
-
-    const command = {
-        type: 'command',
-        payload: { light: newStatus ? 'on' : 'off' }
-    };
-
-    ws.current.send(JSON.stringify(command));
-    // Optimistic UI update
-    setMetrics(prev => ({ ...prev, light: newStatus ? 'on' : 'off' }));
-  };
-
   const handleIncreaseTemp = () => {
     triggerHaptic('impact');
     setTargetTemperature(prev => +(prev + 0.1).toFixed(1));
@@ -474,51 +452,8 @@ export default function App() {
   const dynamicMetricRow = isDangerMode ? styles.metricRowDangerBg : styles.metricRowBg;
   const dynamicMetricCard = isDangerMode ? styles.metricCardDangerBg : styles.metricCardBg;
 
-  // 1. Branding Intro (Splash) siempre al iniciar
   if (showIntro) {
     return <Intro onComplete={() => setShowIntro(false)} />;
-  }
-
-  // 2. Landing / Auth (solo si no hay sesión ni modo demo)
-  if (!user && !isDemoMode) {
-    return (
-      <View style={styles.mainContainer}>
-        <AnimatedBackground isAlert={false} isDanger={false} />
-        <View style={styles.landingContent}>
-          <AQ32logo />
-          <Text style={styles.subtitle}>Supervisión inteligente para tu acuario</Text>
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => setShowAuthModal(true)}>
-              <Text style={styles.primaryButtonText}>Entrar / Registrarse</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ghostButton} onPress={() => setIsDemoMode(true)}>
-              <Text style={styles.ghostButtonText}>Ver Modo Demo</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Re-usar modal de auth existente */}
-        {showAuthModal && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{authMode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}</Text>
-              {authMode === 'register' && (
-                <TextInput style={styles.input} placeholder="Nombre" value={name} onChangeText={setName} placeholderTextColor="#64748b" />
-              )}
-              <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#64748b" />
-              <TextInput style={styles.input} placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor="#64748b" />
-              <TouchableOpacity style={styles.authActionButton} onPress={handleAuthAction} disabled={authLoading}>
-                <Text style={styles.authActionButtonText}>{authLoading ? 'Cargando...' : (authMode === 'login' ? 'Entrar' : 'Registrarse')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
-                <Text style={styles.toggleAuthModeText}>{authMode === 'login' ? '¿No tenés cuenta? Registrate' : '¿Ya tenés cuenta? Entrá'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowAuthModal(false)} style={styles.closeModal}><Text style={styles.closeModalText}>Cancelar</Text></TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </View>
-    );
   }
 
   if (currentView === 'history') {
@@ -532,12 +467,10 @@ export default function App() {
 
   if (isLoadingData) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
         <StatusBar barStyle="light-content" />
         <AnimatedBackground isAlert={false} isDanger={false} />
-        <ActivityIndicator size="large" color="#38bdf8" />
-        <Text style={{ color: '#94a3b8', marginTop: 20, fontSize: 16 }}>Iniciando AquaControl...</Text>
-        <Text style={{ color: '#64748b', marginTop: 5, fontSize: 12 }}>Conectando a {BACKEND_URL}</Text>
+        <SkeletonLoader />
       </View>
     );
   }
@@ -701,11 +634,11 @@ export default function App() {
                       setMetrics({
                         temperature: 24.5,
                         ph: 7.2,
-                        light: 'on',
+                        lighting: 80,
                         updatedAt: new Date().toISOString()
                       });
                     } else {
-                      setMetrics({ temperature: null, ph: null, light: null, updatedAt: null });
+                      setMetrics({ temperature: null, ph: null, lighting: null, updatedAt: null });
                     }
                   }}
                 >
@@ -725,12 +658,33 @@ export default function App() {
                   />
                 </View>
 
-                <View style={[styles.controlWrapper, { marginLeft: isDesktop ? 20 : 0 }]}>
-                  <LightingControl 
-                    status={metrics.light} 
-                    onToggle={handleToggleLight} 
-                  />
-                </View>
+                {isDesktop ? (
+                  <View style={styles.lightControlDesktop}>
+                    <View style={styles.lightButtons}>
+                      <TouchableOpacity style={styles.lightBtn}>
+                        <Text style={styles.lightBtnText}>ON</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ height: 10 }} />
+                    <View style={styles.lightButtons}>
+                      <TouchableOpacity style={styles.lightBtn}>
+                        <Text style={styles.lightBtnText}>OFF</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.lightControlMobile}>
+                    <Text style={styles.controlLabel}>Luz</Text>
+                    <View style={styles.mobileLightBtnContainer}>
+                      <TouchableOpacity style={[styles.lightBtn, styles.mobileLightBtnWidth]}>
+                        <Text style={styles.lightBtnText}>ON</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.lightBtn, styles.lightBtnOff, styles.mobileLightBtnWidth]}>
+                        <Text style={styles.lightBtnText}>OFF</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -739,10 +693,8 @@ export default function App() {
               <View style={[styles.panel, dynamicPanelBg]}>
                 <View style={styles.panelHeader}>
                   <Text style={styles.panelTitle}>Estado del acuario</Text>
-                  <View style={[styles.statusBadge, connected ? badgeStyle : styles.statusDisconnected]}>
-                    <Animated.Text style={[styles.statusText, connected ? textStyle : styles.statusTextDisconnected]}>
-                      {connected ? statusText : 'DESCONECTADO'}
-                    </Animated.Text>
+                  <View style={[styles.statusBadge, badgeStyle]}>
+                    <Animated.Text style={[styles.statusText, textStyle]}>{statusText}</Animated.Text>
                   </View>
                 </View>
 
@@ -760,7 +712,7 @@ export default function App() {
                       <View style={styles.metricInfo}>
                         <Text style={styles.metricLabel}>Iluminación</Text>
                         <Text style={styles.metricValue}>
-                          {metrics.light === 'on' ? 'ON' : (metrics.light === 'off' ? 'OFF' : '--')}
+                          {metrics.lighting ? `${metrics.lighting}%` : '--'}
                         </Text>
                       </View>
                     </View>
@@ -789,7 +741,7 @@ export default function App() {
                         <Text style={styles.metricLabelMobile}>Luz</Text>
                       </View>
                       <Text style={styles.metricValueMobile}>
-                        {metrics.light === 'on' ? 'ON' : (metrics.light === 'off' ? 'OFF' : '--')}
+                        {metrics.lighting ? `${metrics.lighting}%` : '--'}
                       </Text>
                       
                     </View>
@@ -884,7 +836,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#000000' },
-  landingContent: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   safeArea: { flex: 1 },
   scrollContent: { padding: 20, alignItems: 'center', paddingTop: 50 },
   scrollContentDesktop: { alignItems: 'center', paddingTop: 40 },

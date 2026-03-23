@@ -1,7 +1,7 @@
-
 export const CONFIG = {
-    // Para dispositivo físico Android: usar la IP local de la PC.
-    // Para emulador Android: usar 10.0.2.2
-    // Para simulador iOS: usar localhost
-    WS_URL: 'ws://192.168.0.13:4000',
+  // Usamos la IP detectada por tu backend (192.168.0.105)
+  // ya que mDNS (aquacontrol.local) suele fallar en Android/Expo Go con tunel.
+  BACKEND_URL: 'http://192.168.0.105:4000',
+  WS_URL: 'ws://192.168.0.105:4000',
+  FALLBACK_IP: '192.168.0.105'
 };

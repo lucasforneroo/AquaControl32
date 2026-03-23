@@ -12,7 +12,7 @@ const HistoryScreen = ({ onBack }) => {
     };
 
     const socialLinks = [
-        { icon: <Instagram color="#E1306C" size={24} />, url: 'https://www.instagram.com/lucasforneroo/', label: 'Instagram' },
+        { icon: <Instagram color="#E1306C" size={24} />, url: 'https://www.instagram.com/lucasfornero__/', label: 'Instagram' },
         { icon: <Linkedin color="#0077b5" size={24} />, url: 'https://www.linkedin.com/in/lucas-fornero-9b7b3b1b3/', label: 'LinkedIn' },
         { icon: <Github color="#ffffff" size={24} />, url: 'https://github.com/lucasforneroo', label: 'GitHub' },
         { icon: <Mail color="#EA4335" size={24} />, url: 'mailto:lucasfornero@gmail.com', label: 'Email' },

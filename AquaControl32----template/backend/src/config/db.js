@@ -4,7 +4,7 @@ import "dotenv/config";
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+    ssl: false, // Deshabilitamos SSL para Docker local para evitar errores de conexión
 });
 
 // Test de conexión

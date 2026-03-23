@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, ActivityIndicator, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RefreshCcw, Thermometer, Calendar, ArrowLeft, Clock } from 'lucide-react-native';
+import AdvancedTemperatureChart from './AdvancedTemperatureChart';
 import { CONFIG } from '../constants/config';
 import AnimatedBackground from './AnimatedBackground';
 
 const screenWidth = Dimensions.get('window').width;
 
-const MetricsHistoryScreen = ({ onBack }) => {
+const MetricsHistoryScreen = ({ onBack, settings }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -28,8 +29,16 @@ const MetricsHistoryScreen = ({ onBack }) => {
                 sampling = json.filter((_, i) => i % step === 0);
             }
             setData(sampling);
+            // Guardar en caché
+            await AsyncStorage.setItem(`cached_history_${hours}`, JSON.stringify(sampling));
         } catch (error) {
             console.error('Error fetching history:', error);
+            // Intentar cargar de caché
+            const cached = await AsyncStorage.getItem(`cached_history_${hours}`);
+            if (cached) {
+                setData(JSON.parse(cached));
+                console.log(`📦 Historial (${hours}h) cargado de caché`);
+            }
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -48,38 +57,6 @@ const MetricsHistoryScreen = ({ onBack }) => {
         fetchData(hours);
     };
 
-    const chartData = {
-        labels: data.length > 0 ? data.map((d, i) => {
-            const date = new Date(d.recorded_at);
-            if (selectedInterval <= 3) {
-                return i % 3 === 0 ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
-            }
-            return i % 5 === 0 ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
-        }) : [],
-        datasets: [
-            {
-                data: data.length > 0 ? data.map(d => parseFloat(d.temperature) || 0) : [0],
-                color: (opacity = 1) => `rgba(56, 189, 248, ${opacity})`, 
-                strokeWidth: 3
-            }
-        ],
-        legend: ["Temperatura (°C)"]
-    };
-
-    const chartConfig = {
-        backgroundColor: "transparent",
-        backgroundGradientFrom: "#000000",
-        backgroundGradientTo: "#000000",
-        decimalPlaces: 1,
-        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-        labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
-        style: { borderRadius: 16 },
-        propsForDots: {
-            r: "4",
-            strokeWidth: "2",
-            stroke: "#38bdf8" // Cyan para que se vea
-        }
-    };
 
     const intervals = [
         { label: '1h', value: 1 },
@@ -137,14 +114,9 @@ const MetricsHistoryScreen = ({ onBack }) => {
                                         <Text style={styles.cardTitle}>Tendencia - Últimas {selectedInterval}h</Text>
                                     </View>
                                     <View style={styles.chartWrapper}>
-                                        <LineChart
-                                            data={chartData}
-                                            width={screenWidth - 60} 
-                                            height={220}
-                                            chartConfig={chartConfig}
-                                            bezier
-                                            withDots={false}
-                                            style={styles.chart}
+                                        <AdvancedTemperatureChart 
+                                            data={data} 
+                                            settings={settings} 
                                         />
                                     </View>
                                 </View>
@@ -152,7 +124,9 @@ const MetricsHistoryScreen = ({ onBack }) => {
                                 <View style={styles.statsRow}>
                                     <View style={styles.statBox}>
                                         <Thermometer color="#38bdf8" size={24} />
-                                        <Text style={styles.statVal}>{parseFloat(data[data.length-1].temperature).toFixed(1)}°C</Text>
+                                        <Text style={styles.statVal}>
+                                            {data.length > 0 ? parseFloat(data[data.length-1].temperature).toFixed(1) : '--'}°C
+                                        </Text>
                                         <Text style={styles.statLab}>Última lectura</Text>
                                     </View>
                                     <View style={styles.statBox}>

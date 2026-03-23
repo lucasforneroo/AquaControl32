@@ -1,6 +1,9 @@
 import mqtt from 'mqtt';
 import pool from '../config/db.js';
 import wsService from './wsService.js';
+import logger from '../utils/logger.js';
+import { mqttPayloadSchema } from '../utils/schemas.js';
+import notificationService from './notificationService.js';
 
 /**
  * Servicio para manejar la conexión con el broker MQTT.
@@ -10,9 +13,9 @@ class MQTTService {
     constructor() {
         this.client = null;
         this.latestPayload = {
-            temperature: null,
-            light: null,
-            updatedAt: null,
+            temperature: 0,
+            light: 0,
+            updatedAt: new Date().toISOString(),
         };
     }
 
@@ -25,15 +28,28 @@ class MQTTService {
         this.client = mqtt.connect(url);
 
         this.client.on('connect', () => {
-            console.log(`[MQTT] Conectado a ${url}`);
+            logger.info(`[MQTT] Conectado a ${url}`);
             this.client.subscribe(topic);
-            console.log(`[MQTT] Suscrito a ${topic}`);
+            logger.info(`[MQTT] Suscrito a ${topic}`);
         });
 
         this.client.on('message', async (t, payload) => {
             try {
-                const data = JSON.parse(payload.toString());
-                console.log(`[MQTT] Mensaje recibido en ${t}:`, data);
+                const rawData = JSON.parse(payload.toString());
+                
+                // Validar datos con Zod
+                const validation = mqttPayloadSchema.safeParse(rawData);
+                
+                if (!validation.success) {
+                    logger.warn(`[MQTT] Payload inválido recibido en ${t}:`, { 
+                        errors: validation.error.format(), 
+                        rawData 
+                    });
+                    return;
+                }
+
+                const data = validation.data;
+                logger.debug(`[MQTT] Mensaje validado en ${t}:`, { topic: t, data });
 
                 let updated = false;
 
@@ -43,6 +59,11 @@ class MQTTService {
                     if (tVal) {
                         this.latestPayload.temperature = tVal.temp;
                         updated = true;
+                        
+                        // Verificar umbrales para notificaciones push (Aislado para no bloquear el flujo principal)
+                        notificationService.checkTemperature(tVal.temp).catch(err => {
+                            logger.error('[MQTT] Error en checkTemperature:', err);
+                        });
                     }
                 }
 
@@ -66,16 +87,16 @@ class MQTTService {
                 }
 
             } catch (e) {
-                console.error('[MQTT] Error procesando payload:', e.message);
+                logger.error('[MQTT] Error procesando payload:', e);
             }
         });
 
         this.client.on('error', (err) => {
-            console.error('[MQTT] Error de conexión:', err.message);
+            logger.error('[MQTT] Error de conexión MQTT:', err);
         });
 
         this.client.on('close', () => {
-            console.log('[MQTT] Conexión cerrada, reintentando...');
+            logger.warn('[MQTT] Conexión cerrada, reintentando...');
         });
     }
 
@@ -86,13 +107,16 @@ class MQTTService {
      */
     async saveToDB(temp, light) {
         try {
+            // Convertir 'on'/'off' a 1/0 para la base de datos si es necesario
+            const lightValue = light === 'on' ? 1 : (light === 'off' ? 0 : Number(light));
+
             await pool.query(
                 'INSERT INTO metrics (temperature, light, recorded_at) VALUES ($1, $2, NOW())',
-                [temp, light]
+                [temp, lightValue]
             );
-            // console.log('[DB] Métrica guardada exitosamente');
+            // logger.debug('[DB] Métrica guardada exitosamente');
         } catch (error) {
-            console.error('[DB] Error guardando métrica:', error.message);
+            logger.error('[DB] Error guardando métrica:', error);
         }
     }
 
@@ -108,6 +132,25 @@ class MQTTService {
      */
     getLatestPayload() {
         return this.latestPayload;
+    }
+
+    /**
+     * Envía un comando al ESP32 vía MQTT.
+     * @param {Object} payload - Objeto con el comando (ej: { light: 'on' })
+     */
+    sendCommand(payload) {
+        if (!this.client || !this.client.connected) {
+            logger.warn('[MQTT] No se pudo enviar comando: Cliente no conectado');
+            return;
+        }
+
+        const topic = process.env.MQTT_TOPIC_CMD || 'aquacontrol32/esp32/cmd';
+        const msg = JSON.stringify(payload);
+        
+        this.client.publish(topic, msg, { qos: 1 }, (err) => {
+            if (err) logger.error(`[MQTT] Error publicando comando en ${topic}:`, err);
+            else logger.info(`[MQTT] Comando enviado a ${topic}: ${msg}`);
+        });
     }
 
     /**

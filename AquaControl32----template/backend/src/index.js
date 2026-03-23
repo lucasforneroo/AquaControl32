@@ -7,15 +7,14 @@ import cors from 'cors'
 import { getLocalIP } from './utils/ipUtils.js'
 import mqttService from './services/mqttService.js'
 import wsService from './services/wsService.js'
+import retentionService from './services/retentionService.js'
 import { Bonjour } from 'bonjour-service'
-
-const bonjour = new Bonjour()
-bonjour.publish({ name: 'aquacontrol', type: 'http', port: 4000 })
-console.log(`[mDNS] Anunciando servicio como 'aquacontrol.local'`)
+import logger from './utils/logger.js'
 
 // Importar rutas modulares
 import authRoutes from './routes/authRoutes.js'
 import metricsRoutes from './routes/metricsRoutes.js'
+import settingsRoutes from './routes/settingsRoutes.js'
 
 // ============================================
 // CREAR APLICACIÓN EXPRESS
@@ -31,6 +30,28 @@ const MQTT_TOPIC = process.env.MQTT_TOPIC || 'aquacontrol32/esp32/#'
 const LOCAL_IP = getLocalIP()
 
 // ============================================
+// mDNS: ANUNCIO DE SERVICIO
+// ============================================
+const bonjour = new Bonjour()
+const serviceName = 'aquacontrol'
+const serviceType = 'http'
+const servicePort = HTTP_PORT
+
+bonjour.publish({ 
+  name: serviceName, 
+  type: serviceType, 
+  port: servicePort,
+  txt: { 
+    path: '/',
+    version: '2.1.0',
+    server: 'AquaControl32-Backend'
+  }
+})
+
+logger.info(`[mDNS] Anunciando servicio '${serviceName}' en puerto ${servicePort}`)
+logger.info(`[mDNS] URL sugerida: http://${serviceName}.local:${servicePort}`)
+
+// ============================================
 // MIDDLEWARES GLOBALES
 // ============================================
 
@@ -44,17 +65,16 @@ app.use(express.json())
 /**
  * Logger simple para desarrollo
  */
-if (process.env.NODE_ENV !== "production") {
-  app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`)
-    next()
-  })
-}
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`)
+  next()
+})
 
 // ============================================
-// INICIALIZACIÓN DE SERVICIOS (MQTT & WS)
+// INICIALIZACIÓN DE SERVICIOS (MQTT, WS & Retention)
 // ============================================
 mqttService.init(MQTT_URL, MQTT_TOPIC)
+retentionService.init()
 
 // ============================================
 // RUTAS HTTP REST API
@@ -92,6 +112,11 @@ app.use("/auth", authRoutes)
  */
 app.use("/metrics", metricsRoutes)
 
+/**
+ * RUTAS DE CONFIGURACIÓN GLOBAL (Rangos de Alarma)
+ */
+app.use("/settings", settingsRoutes)
+
 // ============================================
 // MANEJO DE ERRORES HTTP
 // ============================================
@@ -105,7 +130,7 @@ app.use((req, res) => {
 })
 
 app.use((err, req, res, next) => {
-  console.error("Error no manejado:", err)
+  logger.error("Error no manejado:", err)
   res.status(500).json({
     error: "Error interno del servidor",
     message: process.env.NODE_ENV === "development" ? err.message : undefined,
@@ -116,19 +141,19 @@ app.use((err, req, res, next) => {
 // INICIAR SERVIDOR HTTP Y WEBSOCKET
 // ============================================
 const server = app.listen(HTTP_PORT, '0.0.0.0', () => {
-  console.log("=".repeat(60))
-  console.log(`AquaControl32 Backend v2.1 iniciado`)
-  console.log("=".repeat(60))
-  console.log(`IP Local detectada: ${LOCAL_IP}`)
-  console.log(`HTTP Server: http://localhost:${HTTP_PORT}`)
-  console.log(`Desde celular: http://${LOCAL_IP}:${HTTP_PORT}`)
-  console.log(`WebSocket: ws://${LOCAL_IP}:${HTTP_PORT}`)
-  console.log(`MQTT Broker: ${MQTT_URL}`)
-  console.log(`MQTT Topic: ${MQTT_TOPIC}`)
-  console.log("=".repeat(60))
-  console.log(`Entorno: ${process.env.NODE_ENV || "development"}`)
-  console.log(`Database: ${process.env.DATABASE_URL ? "Configurada" : "No configurada"}`)
-  console.log("=".repeat(60))
+  logger.info("=".repeat(60))
+  logger.info(`AquaControl32 Backend v2.1 iniciado`)
+  logger.info("=".repeat(60))
+  logger.info(`IP Local detectada: ${LOCAL_IP}`)
+  logger.info(`HTTP Server: http://localhost:${HTTP_PORT}`)
+  logger.info(`Desde celular: http://${LOCAL_IP}:${HTTP_PORT}`)
+  logger.info(`WebSocket: ws://${LOCAL_IP}:${HTTP_PORT}`)
+  logger.info(`MQTT Broker: ${MQTT_URL}`)
+  logger.info(`MQTT Topic: ${MQTT_TOPIC}`)
+  logger.info("=".repeat(60))
+  logger.info(`Entorno: ${process.env.NODE_ENV || "development"}`)
+  logger.info(`Database: ${process.env.DATABASE_URL ? "Configurada" : "No configurada"}`)
+  logger.info("=".repeat(60))
 })
 
 // Inicializar WebSocket Server sobre el servidor Express
@@ -138,13 +163,14 @@ wsService.init(server, mqttService.getLatestPayload())
 // MANEJO DE CIERRE GRACEFUL
 // ============================================
 process.on('SIGTERM', () => {
-  console.log('SIGTERM recibido, cerrando servidor...')
+  logger.info('SIGTERM recibido, cerrando servidor...')
 
   server.close(() => {
-    console.log('Servidor HTTP cerrado')
+    logger.info('Servidor HTTP cerrado')
     mqttService.close()
     wsService.close()
-    console.log('Servicios finalizados')
+    retentionService.stop()
+    logger.info('Servicios finalizados')
     process.exit(0)
   })
 })
