@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Rect, Line, Defs, RadialGradient, Stop, LinearGradient, Path } from 'react-native-svg';
 
-const AnimatedBackground = ({ isAlert = false, isDanger = false }) => {
+const AnimatedBackground = ({ isAlert = false, isDanger = false, isNeutral = false }) => {
     const { width, height } = useWindowDimensions();
     const [tick, setTick] = useState(0);
 
@@ -22,7 +22,7 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false }) => {
         if (width === 0 || height === 0) return;
 
         // Minimalist tech particles
-        const particleCount = 200; // Reduced for performance
+        const particleCount = 150; // Reduced for performance
         const newParticles = [];
 
         for (let i = 0; i < particleCount; i++) {
@@ -72,10 +72,8 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false }) => {
             // SMOOTH TRANSITION
             const target = (isAlert || isDanger) ? 1 : 0;
             if (transitionRef.current < target) {
-                // To Alert/Danger: 2 seconds (0.5 units/s)
                 transitionRef.current = Math.min(target, transitionRef.current + delta * 0.5);
             } else if (transitionRef.current > target) {
-                // Back to Normal: Slower (e.g., 4 seconds = 0.25 units/s)
                 transitionRef.current = Math.max(target, transitionRef.current - delta * 0.25);
             }
 
@@ -114,19 +112,16 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false }) => {
     // We use a fusion factor for the alert mode (oscillation between 0 and 1)
     const alertOscillation = (Math.sin(timeRef.current * Math.PI * 1) + 1) / 2;
     
-    // Normal Colors (Cyan/Blue)
-    const rNorm = 0;
-    const gNorm = Math.round(180 + 40 * factor);
-    const bNorm = Math.round(255 - 40 * factor);
+    const rNorm = isNeutral ? 100 : 0;
+    const gNorm = isNeutral ? 100 : Math.round(180 + 40 * factor);
+    const bNorm = isNeutral ? 100 : Math.round(255 - 40 * factor);
 
     // Alert/Danger Color (Solid Red for particles)
     const rAlert = 255;
-    const gAlert = 0;
-    const bAlert = 0;
+    const gAlert = isNeutral ? 50 : 0;
+    const bAlert = isNeutral ? 50 : 0;
 
     // Party blending for Alert Mode
-    // If isDanger, it's 100% red. 
-    // If isAlert, it oscillates between Normal and Red.
     let blendFactor = t;
     if (isAlert && !isDanger) {
         blendFactor = t * alertOscillation;
@@ -136,12 +131,17 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false }) => {
     const g = Math.round(t > 0 ? (blendFactor * gAlert + (1 - blendFactor) * gNorm) : gNorm);
     const b = Math.round(t > 0 ? (blendFactor * bAlert + (1 - blendFactor) * bNorm) : bNorm);
     
-    const dynamicColor = `rgb(${r}, ${g}, ${b})`;
-    const dynamicLineColor = `rgba(${r}, ${g}, ${b}, 0.12)`;
+    const dynamicColor = isNeutral && !isDanger && !isAlert ? `rgba(150, 150, 150, ${factor * 0.5 + 0.3})` : `rgb(${r}, ${g}, ${b})`;
+    const dynamicLineColor = isNeutral && !isDanger && !isAlert ? `rgba(100, 100, 100, 0.1)` : `rgba(${r}, ${g}, ${b}, 0.12)`;
 
     // BACKGROUND: Black with extremely subtle hints of deep space colors
-    const bgTop = `rgb(${Math.round(t * 20)}, ${Math.round(t * 8 + (1 - t) * 14 )}, ${Math.round(t * 8 + (1 - t) * 20)})`;
-    const bgBottom = `rgb(${Math.round(t * 10)}, ${Math.round(t * 4 + (1 - t) * 1)}, ${Math.round(t * 4 + (1 - t) * 5)})`;
+    // In neutral mode, use pure black/dark grey
+    const bgTop = isNeutral && !isDanger && !isAlert 
+        ? `rgb(10, 10, 10)` 
+        : `rgb(${Math.round(t * 20)}, ${Math.round(t * 8 + (1 - t) * 14 )}, ${Math.round(t * 8 + (1 - t) * 20)})`;
+    const bgBottom = isNeutral && !isDanger && !isAlert 
+        ? `rgb(2, 2, 2)` 
+        : `rgb(${Math.round(t * 10)}, ${Math.round(t * 4 + (1 - t) * 1)}, ${Math.round(t * 4 + (1 - t) * 5)})`;
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">

@@ -13,9 +13,11 @@ import TemperatureControl from './src/components/TemperatureControl';
 import HistoryScreen from './src/components/HistoryScreen';
 import MetricsHistoryScreen from './src/components/MetricsHistoryScreen';
 import AquariumManagementScreen from './src/components/AquariumManagementScreen';
+import LightingManagementScreen from './src/components/LightingManagementScreen';
 import SkeletonLoader from './src/components/SkeletonLoader';
 import OfflineBanner from './src/components/OfflineBanner';
 import LightingControl from './src/components/LightingControl';
+import ProvisioningModal from './src/components/ProvisioningModal';
 import { Thermometer, Sun, Droplets, Settings, Activity, Settings2 } from 'lucide-react-native';
 
 import * as Haptics from 'expo-haptics';
@@ -98,14 +100,15 @@ export default function App() {
     temperature: null,
     ph: null,
     light: null, // 'on' o 'off'
+    lux: 0,
     updatedAt: null
   });
   const [targetTemperature, setTargetTemperature] = useState(26.0);
   const [connected, setConnected] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
+  const [showProvisioning, setShowProvisioning] = useState(false);
 
   // Trigger para haptics genérico
   const triggerHaptic = (type = 'selection') => {
@@ -183,7 +186,6 @@ export default function App() {
 
       if (storedUser && storedToken) {
         setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true); // <--- AGREGAR ESTO PARA QUE CARGUE EL DASHBOARD
         console.log('✅ Sesión restaurada de AsyncStorage');
         setTimeout(() => registerForPushNotificationsAsync(), 2000);
       }
@@ -442,8 +444,11 @@ export default function App() {
   };
 
   const temp = metrics.temperature;
-  const isDanger = temp !== null && (temp <= systemSettings.min_alert_temp || temp >= systemSettings.max_alert_temp);
-  const isAlert = temp !== null && !isDanger && (temp < systemSettings.min_ideal_temp || temp > systemSettings.max_ideal_temp);
+  // Consideramos neutral si está desconectado, o si la temperatura es null o exactamente 0 (indicativo de falta de lectura real)
+  const isNeutral = !connected || temp === null || temp === 0;
+  
+  const isDanger = !isNeutral && (temp <= systemSettings.min_alert_temp || temp >= systemSettings.max_alert_temp);
+  const isAlert = !isNeutral && !isDanger && (temp < systemSettings.min_ideal_temp || temp > systemSettings.max_ideal_temp);
   const isAnyAlert = isDanger || isAlert;
 
   let statusText = 'Desc.';
@@ -451,7 +456,11 @@ export default function App() {
   let textStyle = styles.statusTextDisconnected;
   let isDangerMode = false;
 
-  if (connected) {
+  if (isNeutral) {
+    statusText = 'Desconectado';
+    badgeStyle = styles.statusDisconnected;
+    textStyle = styles.statusTextDisconnected;
+  } else {
     if (isDanger) {
       statusText = 'PELIGRO';
       badgeStyle = styles.statusDanger;
@@ -468,11 +477,11 @@ export default function App() {
     }
   }
 
-  // Estilos dinámicos para los contenedores en modo Peligro
-  const dynamicTopBar = isDangerMode ? styles.topBarDangerBg : styles.topBarBg;
-  const dynamicPanelBg = isDangerMode ? styles.panelDangerBg : styles.panelBg;
-  const dynamicMetricRow = isDangerMode ? styles.metricRowDangerBg : styles.metricRowBg;
-  const dynamicMetricCard = isDangerMode ? styles.metricCardDangerBg : styles.metricCardBg;
+  // Estilos dinámicos para los contenedores en modo Peligro o Neutral
+  const dynamicTopBar = isDangerMode ? styles.topBarDangerBg : (isNeutral ? styles.topBarNeutralBg : styles.topBarBg);
+  const dynamicPanelBg = isDangerMode ? styles.panelDangerBg : (isNeutral ? styles.panelNeutralBg : styles.panelBg);
+  const dynamicMetricRow = isDangerMode ? styles.metricRowDangerBg : (isNeutral ? styles.metricRowNeutralBg : styles.metricRowBg);
+  const dynamicMetricCard = isDangerMode ? styles.metricCardDangerBg : (isNeutral ? styles.metricCardNeutralBg : styles.metricCardBg);
 
   // 1. Branding Intro (Splash) siempre al iniciar
   if (showIntro) {
@@ -524,7 +533,7 @@ export default function App() {
   if (currentView === 'history') {
     return (
       <View style={styles.mainContainer}>
-        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} />
+        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} isNeutral={isNeutral} />
         <HistoryScreen onBack={() => setCurrentView('dashboard')} />
       </View>
     );
@@ -532,12 +541,10 @@ export default function App() {
 
   if (isLoadingData) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.mainContainer}>
         <StatusBar barStyle="light-content" />
         <AnimatedBackground isAlert={false} isDanger={false} />
-        <ActivityIndicator size="large" color="#38bdf8" />
-        <Text style={{ color: '#94a3b8', marginTop: 20, fontSize: 16 }}>Iniciando AquaControl...</Text>
-        <Text style={{ color: '#64748b', marginTop: 5, fontSize: 12 }}>Conectando a {BACKEND_URL}</Text>
+        <SkeletonLoader />
       </View>
     );
   }
@@ -546,7 +553,7 @@ export default function App() {
     return (
       <View style={styles.mainContainer}>
         <OfflineBanner isVisible={isOffline} />
-        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} />
+        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} isNeutral={isNeutral} />
         <MetricsHistoryScreen 
           settings={systemSettings}
           onBack={() => {
@@ -561,7 +568,7 @@ export default function App() {
   if (currentView === 'aquarium_management') {
     return (
       <View style={styles.mainContainer}>
-        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} />
+        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} isNeutral={isNeutral} />
         <AquariumManagementScreen 
           onBack={() => {
             triggerHaptic('selection');
@@ -573,10 +580,96 @@ export default function App() {
     );
   }
 
+  if (currentView === 'lighting_management') {
+    return (
+      <View style={styles.mainContainer}>
+        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} isNeutral={isNeutral} />
+        <LightingManagementScreen 
+          onBack={() => {
+            triggerHaptic('selection');
+            setCurrentView('settings');
+          }}
+          currentLux={metrics.lux || 0}
+        />
+      </View>
+    );
+  }
+
+  if (currentView === 'settings') {
+    return (
+      <View style={styles.mainContainer}>
+        <AnimatedBackground isAlert={isAlert} isDanger={isDanger} isNeutral={isNeutral} />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => setCurrentView('dashboard')} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Volver</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Configuración</Text>
+          </View>
+          
+          <ScrollView contentContainerStyle={styles.settingsScroll}>
+            {/* Historial Card */}
+            <TouchableOpacity 
+              style={styles.settingsCard}
+              onPress={() => {
+                triggerHaptic('selection');
+                setCurrentView('metrics');
+              }}
+            >
+              <View style={[styles.settingsIconContainer, { backgroundColor: 'rgba(56, 189, 248, 0.2)' }]}>
+                <Activity color="#38bdf8" size={24} />
+              </View>
+              <View style={styles.settingsTextContainer}>
+                <Text style={styles.settingsCardTitle}>Estadísticas Diarias</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Gestión Card */}
+            <TouchableOpacity 
+              style={styles.settingsCard}
+              onPress={() => {
+                triggerHaptic('selection');
+                setCurrentView('aquarium_management');
+              }}
+            >
+              <View style={[styles.settingsIconContainer, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                <Settings2 color="#a855f7" size={24} />
+              </View>
+              <View style={styles.settingsTextContainer}>
+                <Text style={styles.settingsCardTitle}>Gestión del Acuario</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Administracion Lumínica Card */}
+            <TouchableOpacity 
+              style={styles.settingsCard}
+              onPress={() => {
+                triggerHaptic('selection');
+                setCurrentView('lighting_management');
+              }}
+            >
+              <View style={[styles.settingsIconContainer, { backgroundColor: 'rgba(251, 191, 36, 0.2)' }]}>
+                <Sun color="#fbbf24" size={24} />
+              </View>
+              <View style={styles.settingsTextContainer}>
+                <Text style={styles.settingsCardTitle}>Administración Lumínica</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.settingsInfoSection}>
+              <Text style={styles.settingsInfoLabel}>Versión del Sistema</Text>
+              <Text style={styles.settingsInfoValue}>AquaControl32 v1.3</Text>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.mainContainer}>
       <StatusBar barStyle="light-content" />
-      <AnimatedBackground isAlert={isAlert} isDanger={isDanger} />
+      <AnimatedBackground isAlert={isAlert} isDanger={isDanger} isNeutral={isNeutral} />
 
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={[
@@ -619,50 +712,19 @@ export default function App() {
 
                 {/* ─── BOTÓN OPCIONES ────────────────────────────────── */}
                 <TouchableOpacity
-                  style={[styles.smallButton, showOptions && styles.smallButtonActive]}
-                  onPress={() => setShowOptions(!showOptions)}
+                  style={[styles.smallButton, currentView === 'settings' && styles.smallButtonActive]}
+                  onPress={() => {
+                    triggerHaptic('selection');
+                    setCurrentView('settings');
+                  }}
                 >
-                  <Settings color={showOptions ? "#38bdf8" : "#94a3b8"} size={16} />
+                  <Settings color={currentView === 'settings' ? "#38bdf8" : "#94a3b8"} size={16} />
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
           {/* ─── EXTENSIÓN DE OPCIONES ───────────────────────────── */}
-          {showOptions && (
-            <View style={styles.optionsExtension}>
-              <Text style={styles.extensionTitle}>Opciones del Sistema</Text>
-              <View style={styles.extensionRow}>
-                <TouchableOpacity 
-                  style={styles.extensionItem}
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    setCurrentView('metrics');
-                    setShowOptions(false);
-                  }}
-                >
-                  <View style={styles.extensionIcon}>
-                    <Activity color="#38bdf8" size={20} />
-                  </View>
-                  <Text style={styles.extensionText}>Estadísticas</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.extensionItem}
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    setCurrentView('aquarium_management');
-                    setShowOptions(false);
-                  }}
-                >
-                  <View style={styles.extensionIcon}>
-                    <Settings2 color="#a855f7" size={20} />
-                  </View>
-                  <Text style={styles.extensionText}>Gestión de Acuario</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
 
           {/* Main Hero Section */}
           <View style={[styles.heroSection, isDesktop && styles.heroSectionDesktop]}>
@@ -683,7 +745,7 @@ export default function App() {
                   style={styles.primaryButton}
                   onPress={() => {
                     triggerHaptic('selection');
-                    Alert.alert('Conectar', 'Para conectar el dispositivo por primera vez, utiliza el firmware adecuado y asegúrate de que el backend esté corriendo.');
+                    setShowProvisioning(true);
                   }}
                 >
                   <Text style={styles.primaryButtonText}>
@@ -878,6 +940,11 @@ export default function App() {
           </View>
         </View>
       )}
+      <ProvisioningModal 
+        visible={showProvisioning} 
+        onClose={() => setShowProvisioning(false)} 
+        backendUrl={BACKEND_URL}
+      />
     </View>
   );
 }
@@ -894,15 +961,19 @@ const styles = StyleSheet.create({
   // Custom Dynamic Backgrounds
   topBarBg: { backgroundColor: 'rgba(15, 23, 42, 0.4)' },
   topBarDangerBg: { backgroundColor: 'rgba(69, 10, 10, 0.4)' },
+  topBarNeutralBg: { backgroundColor: 'rgba(30, 41, 59, 0.2)' },
   
   panelBg: { backgroundColor: 'rgba(15, 23, 42, 0.4)' },
   panelDangerBg: { backgroundColor: 'rgba(69, 10, 10, 0.4)' },
+  panelNeutralBg: { backgroundColor: 'rgba(30, 41, 59, 0.2)', borderColor: 'rgba(148, 163, 184, 0.1)' },
   
   metricRowBg: { backgroundColor: 'rgba(4, 12, 28, 0.6)' },
   metricRowDangerBg: { backgroundColor: 'rgba(35, 5, 5, 0.6)' },
+  metricRowNeutralBg: { backgroundColor: 'rgba(15, 23, 42, 0.3)', borderColor: 'rgba(148, 163, 184, 0.05)' },
 
   metricCardBg: { backgroundColor: 'rgba(2, 6, 23, 0.6)' },
   metricCardDangerBg: { backgroundColor: 'rgba(25, 2, 2, 0.6)' },
+  metricCardNeutralBg: { backgroundColor: 'rgba(2, 6, 23, 0.3)' },
 
   topBarContainer: { 
     flexDirection: 'row', 
@@ -1064,57 +1135,63 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   
-  // ─── Estilos de la Extensión de Opciones ─────────────────
+  // ─── Estilos de la Pantalla de Configuración ───────────
+  settingsScroll: {
+    padding: 20,
+    gap: 15,
+  },
+  settingsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  settingsTextContainer: {
+    flex: 1,
+  },
+  settingsCardTitle: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  settingsCardSub: {
+    color: '#94a3b8',
+    fontSize: 13,
+  },
+  settingsInfoSection: {
+    marginTop: 30,
+    padding: 20,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  settingsInfoLabel: {
+    color: '#64748b',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  settingsInfoValue: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   smallButtonActive: {
     borderColor: '#38bdf8',
     backgroundColor: 'rgba(56, 189, 248, 0.1)',
-  },
-  optionsExtension: {
-    width: '100%',
-    maxWidth: 500,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-  },
-  extensionTitle: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  extensionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 15,
-  },
-  extensionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    minWidth: 180,
-  },
-  extensionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  extensionText: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: '600',
   },
   primaryButtonActive: {
     backgroundColor: '#059669', // Verde para indicar éxito/link

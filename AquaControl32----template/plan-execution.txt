@@ -6,4 +6,4 @@ npm run dev
 
 ## 2. Aplicación Móvil (Terminal 2)
 cd C:\Users\USER\Desktop\AquaControl32\AquaControl32-Mobile
-npx expo start --tunnel
+npx expo start --tunnel --clear

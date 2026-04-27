@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Esquema para los mensajes MQTT que envía el ESP32.
- * Ejemplo esperado: { "temps": [{ "id": "...", "temp": 25.5 }], "light": 450 }
+ * Ejemplo esperado: { "temps": [{ "id": "...", "temp": 25.5 }] }
  */
 export const mqttPayloadSchema = z.object({
     temps: z.array(
@@ -11,7 +11,6 @@ export const mqttPayloadSchema = z.object({
             temp: z.any().nullable(),
         }).passthrough()
     ).optional(),
-    light: z.any().optional(),
 }).passthrough();
 
 /**

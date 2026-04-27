@@ -5,8 +5,9 @@
 -- Almacena información de usuarios autenticados con Google OAuth
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    google_id VARCHAR(255) UNIQUE NOT NULL,
+    google_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255),
     name VARCHAR(255),
     picture TEXT,
     role VARCHAR(50) DEFAULT 'user',
@@ -45,10 +46,14 @@ CREATE TABLE IF NOT EXISTS system_settings (
     min_ideal_temp DECIMAL(5, 2) DEFAULT 16.0,
     max_ideal_temp DECIMAL(5, 2) DEFAULT 26.0,
     min_alert_temp DECIMAL(5, 2) DEFAULT 5.0,
-    max_alert_temp DECIMAL(5, 2) DEFAULT 40.0
+    max_alert_temp DECIMAL(5, 2) DEFAULT 40.0,
+    light_mode VARCHAR(20) DEFAULT 'manual',
+    light_start_time VARCHAR(5) DEFAULT '09:00',
+    light_end_time VARCHAR(5) DEFAULT '21:00',
+    light_manual_intensity INTEGER DEFAULT 100
 );
 
 -- Inicializar la configuración global (solo insertará el ID 1 si no existe)
-INSERT INTO system_settings (id, min_ideal_temp, max_ideal_temp, min_alert_temp, max_alert_temp)
-VALUES (1, 16.0, 26.0, 5.0, 40.0)
+INSERT INTO system_settings (id, min_ideal_temp, max_ideal_temp, min_alert_temp, max_alert_temp, light_mode, light_start_time, light_end_time, light_manual_intensity)
+VALUES (1, 16.0, 26.0, 5.0, 40.0, 'manual', '09:00', '21:00', 100)
 ON CONFLICT (id) DO NOTHING;
