@@ -2,15 +2,16 @@ import { z } from 'zod';
 
 /**
  * Esquema para los mensajes MQTT que envía el ESP32.
- * Ejemplo esperado: { "temps": [{ "id": "...", "temp": 25.5 }] }
+ * Ejemplo esperado: { "temps": [{ "id": "...", "temp": 25.5 }], "light": 80 }
  */
 export const mqttPayloadSchema = z.object({
     temps: z.array(
         z.object({
-            id: z.any().optional(),
-            temp: z.any().nullable(),
-        }).passthrough()
+            id: z.union([z.string(), z.number()]).optional(),
+            temp: z.number().nullable(),
+        })
     ).optional(),
+    light: z.union([z.number(), z.string(), z.boolean()]).optional(),
 }).passthrough();
 
 /**
@@ -33,6 +34,7 @@ export const pushTokenSchema = z.object({
 export const authSchema = z.object({
     email: z.string().email("Email inválido"),
     password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+    name: z.string().min(2, "El nombre es requerido").optional(),
 });
 
 /**

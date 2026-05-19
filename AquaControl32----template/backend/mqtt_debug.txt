@@ -1,9 +1,0 @@
-TOPIC: aquacontrol32/esp32/temp
-PAYLOAD: {"timestamp":6035537,"numSensors":1,"temps":[{"id":1,"addr":"0x28cd6ab4000000f8","temp":29.00}],"stats":{"min":28.81,"max":85.00,"avg":29.33}}
----
-TOPIC: aquacontrol32/esp32/temp
-PAYLOAD: {"timestamp":6037564,"numSensors":1,"temps":[{"id":1,"addr":"0x28cd6ab4000000f8","temp":28.94}],"stats":{"min":28.81,"max":85.00,"avg":29.33}}
----
-TOPIC: aquacontrol32/esp32/temp
-PAYLOAD: {"timestamp":6039590,"numSensors":1,"temps":[{"id":1,"addr":"0x28cd6ab4000000f8","temp":29.00}],"stats":{"min":28.81,"max":85.00,"avg":29.33}}
----

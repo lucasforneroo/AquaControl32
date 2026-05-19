@@ -1,0 +1,5 @@
+export const CONFIG = {
+  BACKEND_URL: 'http://YOUR_SERVER_IP:4000',
+  WS_URL: 'ws://YOUR_SERVER_IP:4000',
+  FALLBACK_IP: 'YOUR_SERVER_IP'
+};

@@ -1,0 +1,25 @@
+# AquaControl32 - Full Execution Plan
+
+## 1. MQTT Broker (Terminal 1)
+# Si usas Mosquitto local:
+mosquitto -c backend/mosquitto.conf -v
+
+## 2. Backend (Terminal 2)
+cd backend
+npm install
+npm run dev
+
+## 3. Web Dashboard (Terminal 3)
+cd web
+npm install
+npm run dev
+
+## 4. Mobile App (Terminal 4)
+cd mobile
+npm install
+npx expo start
+
+## 5. Firmware (Arduino IDE)
+# Abrir firmware/AquaControl32-ESP32.ino
+# Configurar WiFi y IP del servidor en el código
+# Cargar al ESP32
