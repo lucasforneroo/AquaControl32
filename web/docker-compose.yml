@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-Lucas2012}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-YOUR_DB_PASSWORD}
       POSTGRES_DB: aquacontrol
     ports:
       - "5432:5432"
@@ -35,7 +35,7 @@ services:
       - "4000:4000"
     environment:
       - PORT=4000
-      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-Lucas2012}@db:5432/aquacontrol
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-YOUR_DB_PASSWORD}@db:5432/aquacontrol
       - MQTT_URL=mqtt://mqtt:1883
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET}
