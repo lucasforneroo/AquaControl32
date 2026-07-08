@@ -948,7 +948,6 @@ export default function App() {
       <ProvisioningModal 
         visible={showProvisioning} 
         onClose={() => setShowProvisioning(false)} 
-        backendUrl={BACKEND_URL}
       />
     </View>
   );

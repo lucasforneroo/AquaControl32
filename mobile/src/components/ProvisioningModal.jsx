@@ -16,7 +16,6 @@ export default function ProvisioningModal({ visible, onClose, backendUrl }) {
 
     const [selectedSsid, setSelectedSsid] = useState('');
     const [password, setPassword] = useState('');
-    const [mqttIp, setMqttIp] = useState(backendUrl || '');
 
     useEffect(() => {
         if (visible) {
@@ -123,16 +122,6 @@ export default function ProvisioningModal({ visible, onClose, backendUrl }) {
                             secureTextEntry 
                             value={password} 
                             onChangeText={setPassword}
-                            placeholderTextColor="#64748b"
-                        />
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>IP del Servidor (Opcional)</Text>
-                        <TextInput 
-                            style={styles.input} 
-                            value={mqttIp} 
-                            onChangeText={setMqttIp}
-                            placeholder="Ej: 192.168.0.XXX"
                             placeholderTextColor="#64748b"
                         />
                     </View>
