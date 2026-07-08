@@ -67,9 +67,15 @@ class MQTTService {
                     }
                 }
 
-                // Extraer luz
+                // Extraer luz (estado/intensidad manual)
                 if (data.light !== undefined) {
                     this.latestPayload.light = data.light;
+                    updated = true;
+                }
+
+                // Extraer lux (luz ambiental)
+                if (data.lux !== undefined) {
+                    this.latestPayload.lux = data.lux;
                     updated = true;
                 }
 
@@ -77,7 +83,11 @@ class MQTTService {
                     this.latestPayload.updatedAt = new Date().toISOString();
 
                     // Guardar en la base de datos (PostgreSQL)
-                    await this.saveToDB(this.latestPayload.temperature, this.latestPayload.light);
+                    await this.saveToDB(
+                        this.latestPayload.temperature, 
+                        this.latestPayload.light, 
+                        this.latestPayload.lux
+                    );
 
                     // Broadcast a WebSockets en tiempo real
                     wsService.broadcast(JSON.stringify({ 
@@ -104,17 +114,17 @@ class MQTTService {
      * Guarda la lectura actual en la tabla metrics de la base de datos.
      * @param {number} temp - Valor de temperatura.
      * @param {number} light - Valor de iluminación.
+     * @param {number} lux - Valor de luz ambiental.
      */
-    async saveToDB(temp, light) {
+    async saveToDB(temp, light, lux) {
         try {
             // Convertir 'on'/'off' a 1/0 para la base de datos si es necesario
             const lightValue = light === 'on' ? 1 : (light === 'off' ? 0 : Number(light));
 
             await pool.query(
-                'INSERT INTO metrics (temperature, light, recorded_at) VALUES ($1, $2, NOW())',
-                [temp, lightValue]
+                'INSERT INTO metrics (temperature, light, lux, recorded_at) VALUES ($1, $2, $3, NOW())',
+                [temp, lightValue, lux || 0]
             );
-            // logger.debug('[DB] Métrica guardada exitosamente');
         } catch (error) {
             logger.error('[DB] Error guardando métrica:', error);
         }

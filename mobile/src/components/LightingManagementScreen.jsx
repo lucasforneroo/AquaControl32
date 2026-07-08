@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-    Alert, TextInput, ScrollView, useWindowDimensions, Platform
+    Alert, TextInput, ScrollView, useWindowDimensions, Animated, Platform, Switch
 } from 'react-native';
-import { Sun, ArrowLeft, Save, Clock, Zap, Moon, CloudSun, Sparkles } from 'lucide-react-native';
+import { Sun, ArrowLeft, Save, Clock, Zap, Moon, CloudSun, Sparkles, Info } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
-import Slider from '@react-native-community/slider'; // Asegúrate de tenerlo o usar un View + PanResponder
+import Slider from '@react-native-community/slider';
 import { CONFIG } from '../constants/config';
 
 const BACKEND_URL = CONFIG.BACKEND_URL;
@@ -16,13 +16,15 @@ export default function LightingManagementScreen({ onBack, currentLux = 0 }) {
     const isDesktop = width > 900;
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [fadeAnim] = useState(new Animated.Value(0));
 
     // Estado para la configuración lumínica
     const [settings, setSettings] = useState({
-        light_mode: 'manual',
-        light_start_time: '09:00',
-        light_end_time: '21:00',
-        light_manual_intensity: 100
+        light_override_schedule_enabled: false,
+        light_schedule_start: '09:00',
+        light_schedule_end: '21:00',
+        light_override_intensity_enabled: false,
+        light_intensity_value: 100
     });
 
     const triggerHaptic = (type = 'selection') => {
@@ -35,6 +37,11 @@ export default function LightingManagementScreen({ onBack, currentLux = 0 }) {
 
     useEffect(() => {
         fetchSettings();
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+        }).start();
     }, []);
 
     const fetchSettings = async () => {
@@ -44,15 +51,15 @@ export default function LightingManagementScreen({ onBack, currentLux = 0 }) {
             if (response.ok) {
                 const data = await response.json();
                 setSettings({
-                    light_mode: data.light_mode || 'manual',
-                    light_start_time: data.light_start_time || '09:00',
-                    light_end_time: data.light_end_time || '21:00',
-                    light_manual_intensity: data.light_manual_intensity ?? 100
+                    light_override_schedule_enabled: data.light_override_schedule_enabled || false,
+                    light_schedule_start: data.light_schedule_start || '09:00',
+                    light_schedule_end: data.light_schedule_end || '21:00',
+                    light_override_intensity_enabled: data.light_override_intensity_enabled || false,
+                    light_intensity_value: data.light_intensity_value ?? 100
                 });
             }
         } catch (error) {
             console.error('Error fetching light settings:', error);
-            Alert.alert('Error', 'No se pudieron cargar las configuraciones de iluminación.');
         } finally {
             setLoading(false);
         }
@@ -69,291 +76,235 @@ export default function LightingManagementScreen({ onBack, currentLux = 0 }) {
 
             if (response.ok) {
                 triggerHaptic('success');
-                Alert.alert('¡Éxito!', 'Configuración lumínica actualizada.');
+                Alert.alert('¡Sincronizado!', 'La configuración se envió al ESP32 correctamente.');
             } else {
                 throw new Error('Error al guardar');
             }
         } catch (error) {
             triggerHaptic('error');
-            Alert.alert('Error', 'No se pudo guardar la configuración.');
+            Alert.alert('Error', 'No se pudo conectar con el servidor.');
         } finally {
             setSaving(false);
         }
     };
 
-    // Lógica de Estado de Lux
     const getLuxStatus = (lux) => {
-        if (lux <= 50) return { label: 'Oscuro', color: '#64748b', icon: Moon };
-        if (lux <= 300) return { label: 'Poca luz', color: '#fbbf24', icon: CloudSun };
-        if (lux <= 1000) return { label: 'Luz Normal', color: '#38bdf8', icon: Sun };
-        return { label: 'Mucha luz', color: '#f59e0b', icon: Sparkles };
+        if (lux <= 50) return { label: 'Ambiente Oscuro', color: '#94a3b8', icon: Moon, desc: 'Ideal para descanso' };
+        if (lux <= 300) return { label: 'Luz Tenue', color: '#fbbf24', icon: CloudSun, desc: 'Atardecer/Amanecer' };
+        if (lux <= 1000) return { label: 'Luz Óptima', color: '#38bdf8', icon: Sun, desc: 'Día despejado' };
+        return { label: 'Luz Intensa', color: '#f59e0b', icon: Sparkles, desc: 'Exposición directa' };
     };
 
     const luxStatus = getLuxStatus(currentLux);
     const StatusIcon = luxStatus.icon;
 
-    // Lógica Inversa Proporcional (Simulación UI)
-    // Suponemos que 2000 lux es el máximo ambiental para el cálculo
-    const calculateInverseIntensity = (lux) => {
-        const maxLux = 2000;
-        const normalizedLux = Math.min(lux, maxLux);
-        const intensity = 100 - (normalizedLux / maxLux) * 100;
-        return Math.max(Math.round(intensity), 0);
-    };
+    // Cálculo inverso para visualización
+    const autoIntensity = Math.max(0, Math.round(100 - (Math.min(currentLux, 2000) / 2000) * 100));
 
-    const autoIntensity = calculateInverseIntensity(currentLux);
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#38bdf8" />
+                <Text style={styles.loadingText}>Cargando parámetros...</Text>
+            </View>
+        );
+    }
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={[styles.contentContainer, isDesktop && styles.contentContainerDesktop]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => { triggerHaptic(); onBack(); }} style={styles.backButton}>
-                    <ArrowLeft color="#94a3b8" size={24} />
-                </TouchableOpacity>
-                <View style={styles.headerTitleContainer}>
-                    <Sun color="#fbbf24" size={28} style={styles.headerIcon} />
-                    <Text style={styles.headerTitle}>Administración Lumínica</Text>
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.contentContainer, isDesktop && styles.contentContainerDesktop]}>
+                
+                {/* Header Pro */}
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={onBack} style={styles.glassButton}>
+                        <ArrowLeft color="#fff" size={20} />
+                    </TouchableOpacity>
+                    <View style={styles.headerTextContainer}>
+                        <Text style={styles.headerTitle}>Iluminación</Text>
+                        <Text style={styles.headerSubtitle}>Control Inteligente del Ecosistema</Text>
+                    </View>
                 </View>
-            </View>
 
-            {/* Lux Display Block */}
-            <View style={styles.luxCard}>
-                <Text style={styles.luxLabel}>Luz Ambiental Actual</Text>
-                <View style={styles.luxValueContainer}>
-                    <Text style={styles.luxValue}>{currentLux}</Text>
-                    <Text style={styles.luxUnit}>lx</Text>
-                </View>
-                <View style={[styles.statusBadge, { backgroundColor: luxStatus.color + '20' }]}>
-                    <StatusIcon color={luxStatus.color} size={16} style={{ marginRight: 6 }} />
-                    <Text style={[styles.statusBadgeText, { color: luxStatus.color }]}>{luxStatus.label}</Text>
-                </View>
-            </View>
-
-            {/* Mode Switcher */}
-            <View style={styles.modeContainer}>
-                <TouchableOpacity
-                    style={[styles.modeOption, settings.light_mode === 'manual' && styles.modeOptionActive]}
-                    onPress={() => { triggerHaptic(); setSettings({ ...settings, light_mode: 'manual' }); }}
-                >
-                    <Clock color={settings.light_mode === 'manual' ? '#fff' : '#64748b'} size={20} />
-                    <Text style={[styles.modeText, settings.light_mode === 'manual' && styles.modeTextActive]}>Horarios</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.modeOption, settings.light_mode === 'auto' && styles.modeOptionActive]}
-                    onPress={() => { triggerHaptic(); setSettings({ ...settings, light_mode: 'auto' }); }}
-                >
-                    <Zap color={settings.light_mode === 'auto' ? '#fff' : '#64748b'} size={20} />
-                    <Text style={[styles.modeText, settings.light_mode === 'auto' && styles.modeTextActive]}>Proporcional</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Mode Specific Settings */}
-            {settings.light_mode === 'manual' ? (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Planificación por Horarios</Text>
-                    <View style={styles.inputRow}>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Inicio</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={settings.light_start_time}
-                                onChangeText={(val) => setSettings({ ...settings, light_start_time: val })}
-                                placeholder="09:00"
-                                placeholderTextColor="#475569"
-                            />
-                        </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Fin</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={settings.light_end_time}
-                                onChangeText={(val) => setSettings({ ...settings, light_end_time: val })}
-                                placeholder="21:00"
-                                placeholderTextColor="#475569"
-                            />
+                {/* Dashboard de Lux */}
+                <View style={styles.mainCard}>
+                    <View style={styles.luxHeader}>
+                        <Text style={styles.cardLabel}>SENSOR AMBIENTAL</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: luxStatus.color + '15' }]}>
+                            <StatusIcon color={luxStatus.color} size={14} />
+                            <Text style={[styles.statusText, { color: luxStatus.color }]}>{luxStatus.label}</Text>
                         </View>
                     </View>
-                    <Text style={styles.label}>Intensidad LED ({settings.light_manual_intensity}%)</Text>
-                    {/* Placeholder for Slider since we don't have the lib installed yet in some environments */}
-                    <Slider
-                        style={{ width: '100%', height: 40 }}
-                        minimumValue={0}
-                        maximumValue={100}
-                        step={1}
-                        value={settings.light_manual_intensity}
-                        onValueChange={(val) => setSettings({ ...settings, light_manual_intensity: Math.round(val) })}
-                        minimumTrackTintColor="#38bdf8"
-                        maximumTrackTintColor="rgba(51, 65, 85, 0.5)"
-                        thumbTintColor="#38bdf8"
-                    />
-                    <View style={styles.intensityPicker}>
-                        {[25, 50, 75, 100].map(val => (
-                            <TouchableOpacity
-                                key={val}
-                                style={[styles.intensityBtn, settings.light_manual_intensity === val && styles.intensityBtnActive]}
-                                onPress={() => { triggerHaptic(); setSettings({ ...settings, light_manual_intensity: val }); }}
-                            >
-                                <Text style={[styles.intensityBtnText, settings.light_manual_intensity === val && styles.intensityBtnTextActive]}>{val}%</Text>
-                            </TouchableOpacity>
-                        ))}
+                    
+                    <View style={styles.luxDisplay}>
+                        <Text style={styles.luxBigValue}>{currentLux}</Text>
+                        <Text style={styles.luxUnit}>LUX</Text>
                     </View>
-                </View>
-            ) : (
-                <View style={[styles.section, styles.autoSection]}>
-                    <View style={styles.autoHeader}>
-                        <Zap color="#38bdf8" size={24} />
-                        <Text style={styles.sectionTitle}>Modo Inteligente Inverso</Text>
-                    </View>
-                    <Text style={styles.description}>
-                        La luz del acuario se ajustará automáticamente: mientras más luz haya en la habitación, menos potencia usará el LED, ahorrando energía y manteniendo un ambiente constante para tus peces.
-                    </Text>
-                    <View style={styles.previewBox}>
-                        <Text style={styles.previewLabel}>Intensidad LED Calculada:</Text>
-                        <Text style={styles.previewValue}>{autoIntensity}%</Text>
-                    </View>
-                </View>
-            )}
 
-            {/* Save Button */}
-            <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-            >
-                {saving ? (
-                    <ActivityIndicator color="#fff" />
-                ) : (
-                    <>
-                        <Save color="#fff" size={20} style={{ marginRight: 10 }} />
-                        <Text style={styles.saveButtonText}>Guardar Configuración</Text>
-                    </>
-                )}
-            </TouchableOpacity>
+                    <View style={styles.progressTrack}>
+                        <View style={[styles.progressBar, { width: `${Math.min((currentLux/2000)*100, 100)}%`, backgroundColor: luxStatus.color }]} />
+                    </View>
+                    <Text style={styles.cardFooter}>{luxStatus.desc}</Text>
+                </View>
 
-            <View style={{ height: 40 }} />
-        </ScrollView>
+                {/* Overrides */}
+                <Text style={styles.sectionLabel}>EXCEPCIONES (OVERRIDES)</Text>
+                
+                <View style={styles.configCard}>
+                    <View style={styles.overrideRow}>
+                        <View>
+                            <Text style={styles.overrideTitle}>Forzar Horario</Text>
+                            <Text style={styles.overrideDesc}>Ignora el sensor y enciende la luz en este rango</Text>
+                        </View>
+                        <Switch
+                            value={settings.light_override_schedule_enabled}
+                            onValueChange={(val) => { triggerHaptic(); setSettings({...settings, light_override_schedule_enabled: val}); }}
+                            trackColor={{ false: '#1e293b', true: '#38bdf8' }}
+                            thumbColor="#fff"
+                        />
+                    </View>
+
+                    {settings.light_override_schedule_enabled && (
+                        <View style={styles.row}>
+                            <View style={styles.inputBox}>
+                                <Text style={styles.smallLabel}>ENCENDIDO</Text>
+                                <TextInput 
+                                    style={styles.timeInput}
+                                    value={settings.light_schedule_start}
+                                    onChangeText={(t) => setSettings({...settings, light_schedule_start: t})}
+                                    placeholder="09:00"
+                                    placeholderTextColor="#475569"
+                                />
+                            </View>
+                            <View style={styles.inputBox}>
+                                <Text style={styles.smallLabel}>APAGADO</Text>
+                                <TextInput 
+                                    style={styles.timeInput}
+                                    value={settings.light_schedule_end}
+                                    onChangeText={(t) => setSettings({...settings, light_schedule_end: t})}
+                                    placeholder="21:00"
+                                    placeholderTextColor="#475569"
+                                />
+                            </View>
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.configCard}>
+                    <View style={styles.overrideRow}>
+                        <View>
+                            <Text style={styles.overrideTitle}>Forzar Intensidad</Text>
+                            <Text style={styles.overrideDesc}>Ignora la auto-regulación lumínica</Text>
+                        </View>
+                        <Switch
+                            value={settings.light_override_intensity_enabled}
+                            onValueChange={(val) => { triggerHaptic(); setSettings({...settings, light_override_intensity_enabled: val}); }}
+                            trackColor={{ false: '#1e293b', true: '#38bdf8' }}
+                            thumbColor="#fff"
+                        />
+                    </View>
+
+                    {settings.light_override_intensity_enabled && (
+                        <View style={styles.intensitySection}>
+                            <Text style={styles.smallLabel}>INTENSIDAD FIJA: {settings.light_intensity_value}%</Text>
+                            <Slider
+                                style={styles.slider}
+                                minimumValue={0}
+                                maximumValue={100}
+                                step={5}
+                                value={settings.light_intensity_value}
+                                onValueChange={(v) => setSettings({...settings, light_intensity_value: Math.round(v)})}
+                                minimumTrackTintColor="#38bdf8"
+                                maximumTrackTintColor="#1e293b"
+                                thumbTintColor="#fff"
+                            />
+                        </View>
+                    )}
+                </View>
+
+                {/* Botón de Guardado */}
+                <TouchableOpacity 
+                    style={[styles.saveBtn, saving && styles.saveBtnDisabled]} 
+                    onPress={handleSave}
+                    disabled={saving}
+                >
+                    {saving ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <>
+                            <Text style={styles.saveBtnText}>APLICAR CAMBIOS</Text>
+                            <Save color="#fff" size={20} />
+                        </>
+                    )}
+                </TouchableOpacity>
+
+                <View style={styles.footerInfo}>
+                    <Info color="#64748b" size={14} />
+                    <Text style={styles.footerText}>Los cambios se aplican en tiempo real al dispositivo.</Text>
+                </View>
+
+            </ScrollView>
+        </Animated.View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20 },
-    contentContainer: { paddingBottom: 40 },
-    contentContainerDesktop: { maxWidth: 600, alignSelf: 'center', width: '100%' },
-    header: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-    backButton: { padding: 10, marginRight: 12, backgroundColor: 'rgba(30, 41, 59, 0.5)', borderRadius: 12 },
-    headerTitleContainer: { flexDirection: 'row', alignItems: 'center' },
-    headerIcon: { marginRight: 10 },
-    headerTitle: { color: '#f8fafc', fontSize: 22, fontWeight: 'bold' },
+    container: { flex: 1, backgroundColor: '#020617' },
+    contentContainer: { padding: 24, paddingBottom: 60 },
+    contentContainerDesktop: { maxWidth: 500, alignSelf: 'center', width: '100%' },
+    
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' },
+    loadingText: { color: '#94a3b8', marginTop: 12, fontSize: 14, letterSpacing: 1 },
 
-    luxCard: {
-        backgroundColor: 'rgba(30, 41, 59, 0.4)',
-        borderRadius: 24,
-        padding: 30,
-        alignItems: 'center',
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(148, 163, 184, 0.1)'
-    },
-    luxLabel: { color: '#94a3b8', fontSize: 14, marginBottom: 8, letterSpacing: 0.5 },
-    luxValueContainer: { flexDirection: 'row', alignItems: 'baseline' },
-    luxValue: { color: '#fff', fontSize: 64, fontWeight: '800' },
-    luxUnit: { color: '#38bdf8', fontSize: 24, marginLeft: 6, fontWeight: '600' },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        marginTop: 10
-    },
-    statusBadgeText: { fontSize: 14, fontWeight: '600' },
+    header: { flexDirection: 'row', alignItems: 'center', marginBottom: 32, marginTop: Platform.OS === 'ios' ? 20 : 0 },
+    glassButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    headerTextContainer: { flex: 1 },
+    headerTitle: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+    headerSubtitle: { color: '#64748b', fontSize: 13, marginTop: 2 },
 
-    modeContainer: {
-        flexDirection: 'row',
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        borderRadius: 16,
-        padding: 6,
-        marginBottom: 24
-    },
-    modeOption: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        borderRadius: 12,
-        gap: 8
-    },
-    modeOptionActive: { backgroundColor: '#38bdf8' },
-    modeText: { color: '#64748b', fontWeight: '600' },
-    modeTextActive: { color: '#fff' },
+    mainCard: { backgroundColor: '#0f172a', borderRadius: 28, padding: 24, borderSize: 1, borderColor: '#1e293b', marginBottom: 28, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
+    luxHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    cardLabel: { color: '#38bdf8', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, gap: 6 },
+    statusText: { fontSize: 11, fontWeight: '700' },
+    luxDisplay: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginBottom: 20 },
+    luxBigValue: { color: '#fff', fontSize: 72, fontWeight: '900', letterSpacing: -2 },
+    luxUnit: { color: '#334155', fontSize: 20, fontWeight: '700', marginLeft: 8 },
+    progressTrack: { height: 6, backgroundColor: '#1e293b', borderRadius: 3, width: '100%', marginBottom: 12, overflow: 'hidden' },
+    progressBar: { height: '100%', borderRadius: 3 },
+    cardFooter: { color: '#475569', fontSize: 12, textAlign: 'center', fontWeight: '600' },
 
-    section: {
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        borderRadius: 20,
-        padding: 24,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(148, 163, 184, 0.1)'
-    },
-    autoSection: { borderColor: 'rgba(56, 189, 248, 0.2)' },
-    autoHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
-    sectionTitle: { color: '#38bdf8', fontSize: 18, fontWeight: '600', marginBottom: 20 },
-    description: { color: '#94a3b8', fontSize: 14, lineHeight: 20, marginBottom: 24 },
+    sectionLabel: { color: '#475569', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 16, marginLeft: 4 },
+    tabsContainer: { flexDirection: 'row', backgroundColor: '#0f172a', borderRadius: 18, padding: 6, marginBottom: 24 },
+    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 14, gap: 10 },
+    tabActive: { backgroundColor: '#38bdf8' },
+    tabText: { color: '#64748b', fontSize: 14, fontWeight: '700' },
+    tabTextActive: { color: '#fff' },
 
-    inputRow: { flexDirection: 'row', gap: 15, marginBottom: 24 },
-    inputGroup: { flex: 1 },
-    label: { color: '#94a3b8', fontSize: 13, marginBottom: 8 },
-    input: {
-        backgroundColor: 'rgba(2, 6, 23, 0.6)',
-        color: '#fff',
-        borderRadius: 12,
-        padding: 12,
-        fontSize: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(51, 65, 85, 0.5)'
-    },
+    configCard: { backgroundColor: '#0f172a', borderRadius: 24, padding: 20, marginBottom: 24 },
+    overrideRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    overrideTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    overrideDesc: { color: '#64748b', fontSize: 12, marginTop: 4, maxWidth: '85%' },
+    row: { flexDirection: 'row', gap: 16 },
+    inputBox: { flex: 1, backgroundColor: '#020617', padding: 16, borderRadius: 18, borderSize: 1, borderColor: '#1e293b' },
+    smallLabel: { color: '#475569', fontSize: 10, fontWeight: '800', marginBottom: 8 },
+    timeInput: { color: '#fff', fontSize: 18, fontWeight: '700' },
+    intensitySection: { marginTop: 24, paddingHorizontal: 8 },
+    slider: { width: '100%', height: 40 },
+    autoInfo: { flexDirection: 'row', gap: 16, marginBottom: 24 },
+    infoIcon: { width: 48, height: 44, backgroundColor: '#38bdf810', borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    autoTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+    autoDesc: { color: '#64748b', fontSize: 13, lineHeight: 18 },
+    statsPreview: { flexDirection: 'row', backgroundColor: '#020617', borderRadius: 20, padding: 20, alignItems: 'center' },
+    statItem: { flex: 1, alignItems: 'center' },
+    statLabel: { color: '#475569', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+    statValue: { color: '#38bdf8', fontSize: 24, fontWeight: '800' },
+    statDivider: { width: 1, height: 30, backgroundColor: '#1e293b' },
 
-    sliderPlaceholder: {
-        height: 8,
-        backgroundColor: 'rgba(51, 65, 85, 0.5)',
-        borderRadius: 4,
-        marginVertical: 12,
-        overflow: 'hidden'
-    },
-    sliderTrack: { height: '100%', backgroundColor: '#38bdf8' },
-
-    intensityPicker: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-    intensityBtn: {
-        flex: 1,
-        paddingVertical: 10,
-        backgroundColor: 'rgba(30, 41, 59, 0.4)',
-        borderRadius: 10,
-        alignItems: 'center'
-    },
-    intensityBtnActive: { backgroundColor: 'rgba(56, 189, 248, 0.2)', borderWidth: 1, borderColor: '#38bdf8' },
-    intensityBtnText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
-    intensityBtnTextActive: { color: '#38bdf8' },
-
-    previewBox: {
-        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-        padding: 20,
-        borderRadius: 16,
-        alignItems: 'center'
-    },
-    previewLabel: { color: '#38bdf8', fontSize: 14, marginBottom: 4 },
-    previewValue: { color: '#fff', fontSize: 32, fontWeight: '800' },
-
-    saveButton: {
-        backgroundColor: '#0ea5e9',
-        borderRadius: 16,
-        padding: 18,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 12,
-    },
-    saveButtonDisabled: { opacity: 0.6 },
-    saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+    saveBtn: { backgroundColor: '#0ea5e9', borderRadius: 20, paddingVertical: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, shadowColor: '#0ea5e9', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15 },
+    saveBtnDisabled: { opacity: 0.5 },
+    saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+    
+    footerInfo: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 20 },
+    footerText: { color: '#475569', fontSize: 11, fontWeight: '500' }
 });
+

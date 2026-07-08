@@ -8,3 +8,4 @@ build/
 *.local
 backup/
 ..\AquaControl32_Backup/
+secrets.h

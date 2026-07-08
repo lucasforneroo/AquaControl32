@@ -44,10 +44,11 @@ class RetentionService {
             // Buscamos la última hora que no haya sido agregada aún
             // Tomamos los datos del rango [ahora-2h, ahora-1h] para asegurar que la hora esté completa
             const query = `
-                INSERT INTO hourly_metrics (avg_temperature, avg_light, recorded_at)
+                INSERT INTO hourly_metrics (avg_temperature, avg_light, avg_lux, recorded_at)
                 SELECT 
                     AVG(temperature)::numeric(5,2),
                     AVG(light)::numeric(5,2),
+                    AVG(lux)::numeric(5,2),
                     date_trunc('hour', recorded_at) as hour
                 FROM metrics
                 WHERE recorded_at < date_trunc('hour', NOW())

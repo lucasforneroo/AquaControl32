@@ -8,6 +8,7 @@ import { getLocalIP } from './utils/ipUtils.js'
 import mqttService from './services/mqttService.js'
 import wsService from './services/wsService.js'
 import retentionService from './services/retentionService.js'
+import cronService from './services/cronService.js'
 import { Bonjour } from 'bonjour-service'
 import logger from './utils/logger.js'
 
@@ -75,6 +76,7 @@ app.use((req, res, next) => {
 // ============================================
 mqttService.init(MQTT_URL, MQTT_TOPIC)
 retentionService.init()
+cronService.start()
 
 // ============================================
 // RUTAS HTTP REST API

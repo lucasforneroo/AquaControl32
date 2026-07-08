@@ -1,212 +1,188 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, TextInput, ScrollView, Modal, FlatList } from 'react-native';
-import { Wifi, ShieldCheck, ArrowRight, RefreshCw, X, CheckCircle2 } from 'lucide-react-native';
-
-const ESP_AP_IP = '192.168.4.1';
+import { Wifi, ShieldCheck, ArrowRight, RefreshCw, X, CheckCircle2, Bluetooth } from 'lucide-react-native';
+import { useBLEProvisioning, BLE_STATES } from '../hooks/useBLEProvisioning';
 
 export default function ProvisioningModal({ visible, onClose, backendUrl }) {
-    const [step, setStep] = useState(1); // 1: Instrucciones, 2: Escaneo, 3: Formulario, 4: Éxito
-    const [networks, setNetworks] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const { 
+        bleState, 
+        devices, 
+        errorMsg, 
+        startScan, 
+        connectToDevice, 
+        provisionDevice, 
+        reset: resetBle 
+    } = useBLEProvisioning();
+
     const [selectedSsid, setSelectedSsid] = useState('');
     const [password, setPassword] = useState('');
     const [mqttIp, setMqttIp] = useState(backendUrl || '');
 
-    const reset = () => {
-        setStep(1);
-        setNetworks([]);
-        setLoading(false);
-        setSelectedSsid('');
-        setPassword('');
-    };
-
-    const handleNextStep = () => {
-        if (step === 1) scanNetworks();
-        else setStep(step + 1);
-    };
-
-    const scanNetworks = async () => {
-        setLoading(true);
-        setStep(2);
-        try {
-            // Aumentamos el timeout a 10s para dar tiempo al ESP32 a escanear
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            const res = await fetch(`http://${ESP_AP_IP}/scan`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            const data = await res.json();
-            setNetworks(data.networks || []);
-        } catch (error) {
-            console.log('Scan aborted or failed:', error.name);
-            if (error.name === 'AbortError') {
-                Alert.alert(
-                    'Tiempo de espera agotado',
-                    'El dispositivo tardó demasiado en responder. Asegúrate de estar conectado a "AquaControl_Setup".',
-                    [{ text: 'Reintentar', onPress: scanNetworks }, { text: 'Cancelar', onPress: () => setStep(1) }]
-                );
-            } else {
-                Alert.alert('Error de conexión', 'No se pudo alcanzar al dispositivo (192.168.4.1).');
-            }
-        } finally {
-            setLoading(false);
+    useEffect(() => {
+        if (visible) {
+            resetBle();
         }
-    };
+    }, [visible]);
 
-    const handleConfig = async () => {
+    useEffect(() => {
+        if (errorMsg) {
+            Alert.alert('Error', errorMsg);
+        }
+    }, [errorMsg]);
+
+    const handleConfig = () => {
         if (!selectedSsid || !password) {
-            Alert.alert('Error', 'Por favor selecciona una red e ingresa la contraseña.');
+            Alert.alert('Error', 'Por favor ingresa la red y la contraseña.');
             return;
         }
-
-        setLoading(true);
-        try {
-            const body = new URLSearchParams();
-            body.append('ssid', selectedSsid);
-            body.append('pass', password);
-            body.append('mqtt', mqttIp.replace('http://', '').replace(':4000', '').trim());
-
-            const res = await fetch(`http://${ESP_AP_IP}/config`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: body.toString()
-            });
-
-            if (res.ok) {
-                setStep(4);
-            } else {
-                throw new Error('Error en la respuesta del dispositivo');
-            }
-        } catch (error) {
-            Alert.alert('Error de Envío', 'No se pudo enviar la configuración al dispositivo.');
-        } finally {
-            setLoading(false);
-        }
+        provisionDevice(selectedSsid, password);
     };
 
-    const renderStep = () => {
-        switch (step) {
-            case 1:
-                return (
-                    <View style={styles.stepContainer}>
-                        <Wifi color="#38bdf8" size={60} style={styles.icon} />
-                        <Text style={styles.title}>Vincular Dispositivo</Text>
-                        <Text style={styles.description}>
-                            Para configurar tu AquaControl32:
-                            {"\n\n"}1. Ve a los ajustes WiFi de tu teléfono.
-                            {"\n"}2. Conéctate a la red: {"\n"}   <Text style={styles.bold}>"AquaControl_Setup"</Text>
-                            {"\n"}3. Una vez conectado, vuelve aquí.
-                        </Text>
-                        <TouchableOpacity style={styles.primaryButton} onPress={handleNextStep}>
-                            <Text style={styles.buttonText}>Ya estoy conectado</Text>
-                            <ArrowRight color="#fff" size={20} />
-                        </TouchableOpacity>
-                    </View>
-                );
-            case 2:
-                return (
-                    <View style={styles.stepContainer}>
-                        <Text style={styles.title}>Selecciona tu red WiFi</Text>
-                        {loading ? (
-                            <View style={styles.loader}>
-                                <ActivityIndicator size="large" color="#38bdf8" />
-                                <Text style={styles.loaderText}>Escaneando...</Text>
-                            </View>
-                        ) : (
-                            <FlatList
-                                data={networks}
-                                keyExtractor={(item, index) => index.toString()}
-                                style={styles.list}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity 
-                                        style={[styles.networkItem, selectedSsid === item.ssid && styles.networkItemSelected]}
-                                        onPress={() => { setSelectedSsid(item.ssid); setStep(3); }}
-                                    >
-                                        <Text style={styles.networkName}>{item.ssid}</Text>
-                                        <Text style={styles.networkInfo}>{item.rssi} dBm</Text>
-                                    </TouchableOpacity>
-                                )}
-                                ListEmptyComponent={
-                                    <View style={styles.empty}>
-                                        <Text style={styles.emptyText}>No se encontraron redes.</Text>
-                                        <TouchableOpacity onPress={scanNetworks} style={styles.retryButton}>
-                                            <RefreshCw color="#38bdf8" size={20} />
-                                            <Text style={styles.retryText}>Reintentar</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                }
-                            />
-                        )}
-                        <TouchableOpacity style={styles.ghostButton} onPress={() => setStep(1)}>
-                            <Text style={styles.ghostButtonText}>Volver</Text>
-                        </TouchableOpacity>
-                    </View>
-                );
-            case 3:
-                return (
-                    <ScrollView contentContainerStyle={styles.stepContainer}>
-                        <ShieldCheck color="#38bdf8" size={60} style={styles.icon} />
-                        <Text style={styles.title}>Configuración</Text>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Red seleccionada</Text>
-                            <TextInput style={[styles.input, { opacity: 0.6 }]} value={selectedSsid} editable={false} />
-                        </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Contraseña WiFi</Text>
-                            <TextInput 
-                                style={styles.input} 
-                                placeholder="Clave de tu WiFi" 
-                                secureTextEntry 
-                                value={password} 
-                                onChangeText={setPassword}
-                                placeholderTextColor="#64748b"
-                            />
-                        </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>IP del Servidor (Opcional)</Text>
-                            <TextInput 
-                                style={styles.input} 
-                                value={mqttIp} 
-                                onChangeText={setMqttIp}
-                                placeholder="Ej: 192.168.0.XXX"
-                                placeholderTextColor="#64748b"
-                            />
-                        </View>
-                        <TouchableOpacity style={styles.primaryButton} onPress={handleConfig} disabled={loading}>
-                            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Vincular ahora</Text>}
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.ghostButton} onPress={() => setStep(2)}>
-                            <Text style={styles.ghostButtonText}>Cambiar red</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
-                );
-            case 4:
-                return (
-                    <View style={styles.stepContainer}>
-                        <CheckCircle2 color="#22c55e" size={80} style={styles.icon} />
-                        <Text style={styles.title}>¡Configuración Enviada!</Text>
-                        <Text style={styles.description}>
-                            El dispositivo se está reiniciando para conectar a <Text style={styles.bold}>{selectedSsid}</Text>.
-                            {"\n\n"}Regresa a tu WiFi principal y en unos segundos el dispositivo debería aparecer "Estable" en el panel.
-                        </Text>
-                        <TouchableOpacity style={styles.successButton} onPress={() => { reset(); onClose(); }}>
-                            <Text style={styles.buttonText}>Finalizar</Text>
-                        </TouchableOpacity>
-                    </View>
-                );
+    const renderContent = () => {
+        if (bleState === BLE_STATES.IDLE) {
+            return (
+                <View style={styles.stepContainer}>
+                    <Bluetooth color="#38bdf8" size={60} style={styles.icon} />
+                    <Text style={styles.title}>Vincular Dispositivo (BLE)</Text>
+                    <Text style={styles.description}>
+                        Para configurar tu AquaControl32:
+                        {"\n\n"}1. Asegúrate de que el dispositivo esté encendido.
+                        {"\n"}2. Enciende el Bluetooth de tu teléfono.
+                        {"\n"}3. Presiona "Escanear" para buscar el dispositivo.
+                    </Text>
+                    <TouchableOpacity style={styles.primaryButton} onPress={startScan}>
+                        <Text style={styles.buttonText}>Escanear Dispositivos</Text>
+                        <ArrowRight color="#fff" size={20} />
+                    </TouchableOpacity>
+                </View>
+            );
         }
+
+        if (bleState === BLE_STATES.SCANNING || bleState === BLE_STATES.DISCOVERED || bleState === BLE_STATES.CONNECTING) {
+            return (
+                <View style={styles.stepContainer}>
+                    <Text style={styles.title}>Buscando Dispositivos</Text>
+                    {bleState === BLE_STATES.SCANNING && devices.length === 0 ? (
+                        <View style={styles.loader}>
+                            <ActivityIndicator size="large" color="#38bdf8" />
+                            <Text style={styles.loaderText}>Escaneando (Bluetooth)...</Text>
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={devices}
+                            keyExtractor={(item) => item.id}
+                            style={styles.list}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity 
+                                    style={styles.networkItem}
+                                    onPress={() => connectToDevice(item)}
+                                >
+                                    <Text style={styles.networkName}>{item.name || 'AquaControl32-Setup'}</Text>
+                                    <Text style={styles.networkInfo}>{item.rssi} dBm</Text>
+                                    {bleState === BLE_STATES.CONNECTING && <ActivityIndicator color="#38bdf8" style={{marginLeft: 10}}/>}
+                                </TouchableOpacity>
+                            )}
+                            ListEmptyComponent={
+                                <View style={styles.empty}>
+                                    <Text style={styles.emptyText}>No se encontraron dispositivos BLE.</Text>
+                                    <TouchableOpacity onPress={startScan} style={styles.retryButton}>
+                                        <RefreshCw color="#38bdf8" size={20} />
+                                        <Text style={styles.retryText}>Reintentar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            }
+                        />
+                    )}
+                    <TouchableOpacity style={styles.ghostButton} onPress={resetBle}>
+                        <Text style={styles.ghostButtonText}>Volver</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        if (bleState === BLE_STATES.CONNECTED_AWAITING_INPUT || bleState === BLE_STATES.FAILED && errorMsg === 'WiFi connection failed.') {
+            return (
+                <ScrollView contentContainerStyle={styles.stepContainer}>
+                    <ShieldCheck color="#38bdf8" size={60} style={styles.icon} />
+                    <Text style={styles.title}>Configuración WiFi</Text>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Nombre de tu Red (SSID)</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="Ej: MiRedWiFi" 
+                            value={selectedSsid} 
+                            onChangeText={setSelectedSsid}
+                            placeholderTextColor="#64748b"
+                        />
+                    </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Contraseña WiFi</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="Clave de tu WiFi" 
+                            secureTextEntry 
+                            value={password} 
+                            onChangeText={setPassword}
+                            placeholderTextColor="#64748b"
+                        />
+                    </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>IP del Servidor (Opcional)</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            value={mqttIp} 
+                            onChangeText={setMqttIp}
+                            placeholder="Ej: 192.168.0.XXX"
+                            placeholderTextColor="#64748b"
+                        />
+                    </View>
+                    <TouchableOpacity style={styles.primaryButton} onPress={handleConfig}>
+                        <Text style={styles.buttonText}>Enviar Configuración</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.ghostButton} onPress={resetBle}>
+                        <Text style={styles.ghostButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            );
+        }
+
+        if (bleState === BLE_STATES.SENDING_DATA || bleState === BLE_STATES.AWAITING_VERIFICATION) {
+             return (
+                 <View style={styles.stepContainer}>
+                    <View style={styles.loader}>
+                        <ActivityIndicator size="large" color="#38bdf8" />
+                        <Text style={styles.loaderText}>Enviando configuración y verificando...</Text>
+                    </View>
+                 </View>
+             );
+        }
+
+        if (bleState === BLE_STATES.PROVISIONED) {
+            return (
+                <View style={styles.stepContainer}>
+                    <CheckCircle2 color="#22c55e" size={80} style={styles.icon} />
+                    <Text style={styles.title}>¡Configuración Exitosa!</Text>
+                    <Text style={styles.description}>
+                        El dispositivo se ha conectado exitosamente a <Text style={styles.bold}>{selectedSsid}</Text>.
+                    </Text>
+                    <TouchableOpacity style={styles.successButton} onPress={() => { resetBle(); onClose(); }}>
+                        <Text style={styles.buttonText}>Finalizar</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        return null;
     };
 
     return (
-        <Modal visible={visible} animationType="slide" transparent={true}>
+        <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={styles.modalContent}>
                     <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
                         <X color="#94a3b8" size={24} />
                     </TouchableOpacity>
-                    {renderStep()}
+                    {renderContent()}
                 </View>
             </View>
         </Modal>
@@ -269,7 +245,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(148, 163, 184, 0.1)'
     },
-    networkItemSelected: { borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)' },
     networkName: { color: '#f8fafc', fontSize: 16, fontWeight: '500' },
     networkInfo: { color: '#64748b', fontSize: 12 },
     

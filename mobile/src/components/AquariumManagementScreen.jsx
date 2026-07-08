@@ -40,10 +40,10 @@ export default function AquariumManagementScreen({ onBack, onSettingsSaved }) {
             if (response.ok) {
                 const data = await response.json();
                 setSettings({
-                    min_ideal_temp: data.min_ideal_temp.toString(),
-                    max_ideal_temp: data.max_ideal_temp.toString(),
-                    min_alert_temp: data.min_alert_temp.toString(),
-                    max_alert_temp: data.max_alert_temp.toString()
+                    min_ideal_temp: data.min_ideal_temp?.toString() ?? '16.0',
+                    max_ideal_temp: data.max_ideal_temp?.toString() ?? '26.0',
+                    min_alert_temp: data.min_alert_temp?.toString() ?? '5.0',
+                    max_alert_temp: data.max_alert_temp?.toString() ?? '40.0'
                 });
             }
         } catch (error) {

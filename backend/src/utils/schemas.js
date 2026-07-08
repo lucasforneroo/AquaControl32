@@ -12,6 +12,7 @@ export const mqttPayloadSchema = z.object({
         })
     ).optional(),
     light: z.union([z.number(), z.string(), z.boolean()]).optional(),
+    lux: z.number().optional(),
 }).passthrough();
 
 /**

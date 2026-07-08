@@ -26,6 +26,7 @@ const initDb = async () => {
                 id SERIAL PRIMARY KEY,
                 temperature DECIMAL(5, 2),
                 light DECIMAL(5, 2),
+                lux DECIMAL(5, 2) DEFAULT 0,
                 recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -43,6 +44,7 @@ const initDb = async () => {
                 id SERIAL PRIMARY KEY,
                 avg_temperature DECIMAL(5, 2),
                 avg_light DECIMAL(5, 2),
+                avg_lux DECIMAL(5, 2) DEFAULT 0,
                 recorded_at TIMESTAMP WITH TIME ZONE UNIQUE NOT NULL
             );
         `);
@@ -62,18 +64,27 @@ const initDb = async () => {
                 max_ideal_temp DECIMAL(5, 2) DEFAULT 26.0,
                 min_alert_temp DECIMAL(5, 2) DEFAULT 5.0,
                 max_alert_temp DECIMAL(5, 2) DEFAULT 40.0,
-                light_mode VARCHAR(20) DEFAULT 'manual',
-                light_start_time VARCHAR(5) DEFAULT '09:00',
-                light_end_time VARCHAR(5) DEFAULT '21:00',
-                light_manual_intensity INTEGER DEFAULT 100
+                light_override_schedule_enabled BOOLEAN DEFAULT FALSE,
+                light_schedule_start VARCHAR(5) DEFAULT '09:00',
+                light_schedule_end VARCHAR(5) DEFAULT '21:00',
+                light_override_intensity_enabled BOOLEAN DEFAULT FALSE,
+                light_intensity_value INTEGER DEFAULT 100
             );
         `);
         console.log('✅ Tabla «system_settings» verificada/creada');
 
         // Inicializar configuración global si no existe
         await pool.query(`
-            INSERT INTO system_settings (id, min_ideal_temp, max_ideal_temp, min_alert_temp, max_alert_temp, light_mode, light_start_time, light_end_time, light_manual_intensity)
-            VALUES (1, 16.0, 26.0, 5.0, 40.0, 'manual', '09:00', '21:00', 100)
+            INSERT INTO system_settings (
+                id, min_ideal_temp, max_ideal_temp, min_alert_temp, max_alert_temp, 
+                light_override_schedule_enabled, light_schedule_start, light_schedule_end, 
+                light_override_intensity_enabled, light_intensity_value
+            )
+            VALUES (
+                1, 16.0, 26.0, 5.0, 40.0, 
+                FALSE, '09:00', '21:00', 
+                FALSE, 100
+            )
             ON CONFLICT (id) DO NOTHING;
         `);
         console.log('✅ Configuración inicial de «system_settings» verificada');

@@ -18,7 +18,7 @@ import SkeletonLoader from './src/components/SkeletonLoader';
 import OfflineBanner from './src/components/OfflineBanner';
 import LightingControl from './src/components/LightingControl';
 import ProvisioningModal from './src/components/ProvisioningModal';
-import { Thermometer, Sun, Droplets, Settings, Activity, Settings2 } from 'lucide-react-native';
+import { Thermometer, Sun, Droplets, Settings, Activity, Settings2, ArrowLeft } from 'lucide-react-native';
 
 import * as Haptics from 'expo-haptics';
 import * as Google from 'expo-auth-session/providers/google';
@@ -141,7 +141,12 @@ export default function App() {
       const res = await fetch(`${BACKEND_URL}/settings`);
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
-      setSystemSettings(data);
+      setSystemSettings({
+        min_ideal_temp: data.min_ideal_temp ?? 16.0,
+        max_ideal_temp: data.max_ideal_temp ?? 26.0,
+        min_alert_temp: data.min_alert_temp ?? 5.0,
+        max_alert_temp: data.max_alert_temp ?? 40.0,
+      });
       setIsOffline(false);
       await AsyncStorage.setItem('cached_settings', JSON.stringify(data));
       setTimeout(() => setIsLoadingData(false), 1500);
@@ -426,7 +431,7 @@ export default function App() {
 
     const command = {
         type: 'command',
-        payload: { light: newStatus ? 'on' : 'off' }
+        payload: { light_on: newStatus }
     };
 
     ws.current.send(JSON.stringify(command));
@@ -602,7 +607,7 @@ export default function App() {
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => setCurrentView('dashboard')} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Volver</Text>
+              <ArrowLeft color="#fff" size={24} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Configuración</Text>
           </View>
@@ -1136,6 +1141,12 @@ const styles = StyleSheet.create({
   },
   
   // ─── Estilos de la Pantalla de Configuración ───────────
+  backButton: {
+    padding: 10,
+    marginRight: 10,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderRadius: 12,
+  },
   settingsScroll: {
     padding: 20,
     gap: 15,
