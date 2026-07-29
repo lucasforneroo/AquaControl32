@@ -1,10 +1,40 @@
 # AquaControl32
 
+<p align="center">
+  <img src="assets/aquacontrol-banner.svg" alt="AquaControl32 banner" width="100%">
+</p>
+
 **Dispositivo IoT para el monitoreo de temperatura y la regulación automática de iluminación en acuarios**, basado en ESP32.
 
-Proyecto desarrollado por **Lucas Fornero** para la cátedra de Ingeniería en Computación I — UNRaf (Rafaela, Santa Fe, Argentina).
+Proyecto desarrollado por **Lucas Fornero** y **Julián Müller** para la cátedra de Ingeniería en Computación I — UNRaf (Rafaela, Santa Fe, Argentina).
 
 [![Demo en video](https://github.com/lucasforneroo/AquaControl32/raw/main/thumbnail.png)](https://youtu.be/jFxJrfuyzKE?feature=shared)
+
+<p align="center">
+  <!-- Hardware / Firmware -->
+  <img src="https://img.shields.io/badge/ESP32-000000?style=for-the-badge&logo=espressif&logoColor=white" alt="ESP32">
+  <img src="https://img.shields.io/badge/Arduino-00979D?style=for-the-badge&logo=arduino&logoColor=white" alt="Arduino Framework">
+  <img src="https://img.shields.io/badge/C++-00599C?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++">
+  <img src="https://img.shields.io/badge/Bluetooth%20LE-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white" alt="Bluetooth Low Energy">
+  <br>
+  <img src="https://img.shields.io/badge/I²C-8A2BE2?style=for-the-badge" alt="I2C">
+  <img src="https://img.shields.io/badge/1--Wire-777777?style=for-the-badge" alt="1-Wire">
+  <img src="https://img.shields.io/badge/PWM%20control-FF7043?style=for-the-badge" alt="PWM">
+  <img src="https://img.shields.io/badge/DS18B20-4CAF50?style=for-the-badge" alt="DS18B20 Temperature Sensor">
+  <img src="https://img.shields.io/badge/BH1750-FFC107?style=for-the-badge" alt="BH1750 Light Sensor">
+  <br>
+  <!-- Backend / Software -->
+  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express">
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/MQTT-660066?style=for-the-badge&logo=mqtt&logoColor=white" alt="MQTT">
+  <img src="https://img.shields.io/badge/Mosquitto-3C5280?style=for-the-badge&logo=eclipsemosquitto&logoColor=white" alt="Mosquitto Broker">
+  <br>
+  <!-- Mobile / Frontend -->
+  <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native">
+  <img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo">
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+</p>
 
 ---
 
@@ -136,8 +166,9 @@ Se confirmó el correcto funcionamiento de la cadena completa: sensor → firmwa
 - **Mobile:** React Native + Expo
 - **Protocolos:** MQTT, BLE (GATT), I²C, 1-Wire
 
-## Autor
+## Autores
 
 - Lucas Fornero
+- Julián Müller
 
 Proyecto académico — Ingeniería en Computación I, UNRaf.
