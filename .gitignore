@@ -9,3 +9,7 @@ build/
 backup/
 ..\AquaControl32_Backup/
 secrets.h
+true/
+opensec/
+backup/
+plan_execution.txt

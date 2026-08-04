@@ -7,6 +7,31 @@ import { CONFIG } from '../constants/config';
 
 const BACKEND_URL = CONFIG.BACKEND_URL; // Ahora centralizado en config.js
 
+const validateTemperatureRanges = (settings) => {
+    const minIdeal = Number(settings.min_ideal_temp);
+    const maxIdeal = Number(settings.max_ideal_temp);
+    const minAlert = Number(settings.min_alert_temp);
+    const maxAlert = Number(settings.max_alert_temp);
+
+    if (![minIdeal, maxIdeal, minAlert, maxAlert].every(Number.isFinite)) {
+        return 'Completá los cuatro límites de temperatura con valores numéricos válidos.';
+    }
+
+    if (minIdeal >= maxIdeal) {
+        return 'La temperatura mínima ideal debe ser menor que la máxima ideal.';
+    }
+
+    if (minAlert >= minIdeal) {
+        return 'El límite crítico mínimo debe ser menor que la temperatura mínima ideal.';
+    }
+
+    if (maxAlert <= maxIdeal) {
+        return 'El límite crítico máximo debe ser mayor que la temperatura máxima ideal.';
+    }
+
+    return null;
+};
+
 export default function AquariumManagementScreen({ onBack, onSettingsSaved }) {
     const { width } = useWindowDimensions();
     const isDesktop = width > 900;
@@ -55,6 +80,13 @@ export default function AquariumManagementScreen({ onBack, onSettingsSaved }) {
     };
 
     const handleSave = async () => {
+        const validationError = validateTemperatureRanges(settings);
+        if (validationError) {
+            triggerHaptic('error');
+            Alert.alert('Rangos inválidos', validationError);
+            return;
+        }
+
         try {
             setSaving(true);
             const body = {
@@ -90,7 +122,11 @@ export default function AquariumManagementScreen({ onBack, onSettingsSaved }) {
 
     const handleInputChange = (key, value) => {
         // Permitir solo números y punto decimal
-        const sanitized = value.replace(/[^0-9.]/g, '');
+        const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
+        const [integerPart, ...decimalParts] = normalized.split('.');
+        const sanitized = decimalParts.length > 0
+            ? `${integerPart}.${decimalParts.join('')}`
+            : integerPart;
         setSettings(prev => ({ ...prev, [key]: sanitized }));
     };
 

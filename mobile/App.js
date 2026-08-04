@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, ScrollView, SafeAreaView,
-  StatusBar, TouchableOpacity, useWindowDimensions, Alert, Linking, TextInput, ActivityIndicator
+  StatusBar, TouchableOpacity, useWindowDimensions, Alert, Linking, TextInput, ActivityIndicator,
+  BackHandler, Platform
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
@@ -175,6 +176,42 @@ export default function App() {
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
   const isConnecting = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+
+    const handleHardwareBackPress = () => {
+      if (showProvisioning) {
+        setShowProvisioning(false);
+        return true;
+      }
+
+      if (showAuthModal) {
+        setShowAuthModal(false);
+        return true;
+      }
+
+      if (showIntro) {
+        return true;
+      }
+
+      if (currentView === 'lighting_management') {
+        setCurrentView('settings');
+        return true;
+      }
+
+      if (currentView !== 'dashboard') {
+        setCurrentView('dashboard');
+        return true;
+      }
+
+      // En el dashboard dejamos que Android cierre o minimice la app normalmente.
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleHardwareBackPress);
+    return () => subscription.remove();
+  }, [currentView, showAuthModal, showIntro, showProvisioning]);
 
   // ─── Verificar si hay sesión guardada al iniciar ──────────
   useEffect(() => {

@@ -76,7 +76,7 @@ export default function ProvisioningModal({ visible, onClose, backendUrl }) {
                                     style={styles.networkItem}
                                     onPress={() => connectToDevice(item)}
                                 >
-                                    <Text style={styles.networkName}>{item.name || 'AquaControl32-Setup'}</Text>
+                                    <Text style={styles.networkName}>{item.name}</Text>
                                     <Text style={styles.networkInfo}>{item.rssi} dBm</Text>
                                     {bleState === BLE_STATES.CONNECTING && <ActivityIndicator color="#38bdf8" style={{marginLeft: 10}}/>}
                                 </TouchableOpacity>

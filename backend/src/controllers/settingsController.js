@@ -2,6 +2,43 @@ import pool from '../config/db.js';
 import logger from '../utils/logger.js';
 import mqttService from '../services/mqttService.js';
 
+const SETTINGS_FIELDS = [
+    'min_ideal_temp',
+    'max_ideal_temp',
+    'min_alert_temp',
+    'max_alert_temp',
+    'light_override_schedule_enabled',
+    'light_schedule_start',
+    'light_schedule_end',
+    'light_override_intensity_enabled',
+    'light_intensity_value'
+];
+
+const validateTemperatureRanges = (settings) => {
+    const minIdeal = Number(settings.min_ideal_temp);
+    const maxIdeal = Number(settings.max_ideal_temp);
+    const minAlert = Number(settings.min_alert_temp);
+    const maxAlert = Number(settings.max_alert_temp);
+
+    if (![minIdeal, maxIdeal, minAlert, maxAlert].every(Number.isFinite)) {
+        return 'Los límites de temperatura deben ser valores numéricos válidos.';
+    }
+
+    if (minIdeal >= maxIdeal) {
+        return 'La temperatura mínima ideal debe ser menor que la máxima ideal.';
+    }
+
+    if (minAlert >= minIdeal) {
+        return 'El límite crítico mínimo debe ser menor que la temperatura mínima ideal.';
+    }
+
+    if (maxAlert <= maxIdeal) {
+        return 'El límite crítico máximo debe ser mayor que la temperatura máxima ideal.';
+    }
+
+    return null;
+};
+
 export const getSettings = async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM system_settings WHERE id = 1');
@@ -26,13 +63,26 @@ export const getSettings = async (req, res) => {
 };
 
 export const updateSettings = async (req, res) => {
-    const { 
-        min_ideal_temp, max_ideal_temp, min_alert_temp, max_alert_temp, 
-        light_override_schedule_enabled, light_schedule_start, light_schedule_end, 
-        light_override_intensity_enabled, light_intensity_value 
-    } = req.body;
-
     try {
+        // Cada pantalla actualiza solo su sección. Fusionamos el payload con
+        // la configuración persistida antes de validarla y guardarla.
+        const currentResult = await pool.query('SELECT * FROM system_settings WHERE id = 1');
+        if (currentResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Configuración del sistema no encontrada.' });
+        }
+
+        const settings = { ...currentResult.rows[0] };
+        for (const field of SETTINGS_FIELDS) {
+            if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+                settings[field] = req.body[field];
+            }
+        }
+
+        const validationError = validateTemperatureRanges(settings);
+        if (validationError) {
+            return res.status(400).json({ error: validationError });
+        }
+
         const query = `
             UPDATE system_settings 
             SET min_ideal_temp = $1, 
@@ -49,19 +99,29 @@ export const updateSettings = async (req, res) => {
         `;
         
         const values = [
-            min_ideal_temp, max_ideal_temp, min_alert_temp, max_alert_temp, 
-            light_override_schedule_enabled, light_schedule_start, light_schedule_end, 
-            light_override_intensity_enabled, light_intensity_value
+            settings.min_ideal_temp, settings.max_ideal_temp,
+            settings.min_alert_temp, settings.max_alert_temp,
+            settings.light_override_schedule_enabled, settings.light_schedule_start,
+            settings.light_schedule_end, settings.light_override_intensity_enabled,
+            settings.light_intensity_value
         ];
         const result = await pool.query(query, values);
         
         const updatedSettings = result.rows[0];
         logger.info(`System settings updated: ${JSON.stringify(updatedSettings)}`);
 
-        // Phase 2 will implement MQTT publishing in cronjob, maybe remove this manual sendCommand or keep for immediate update
-        // We'll leave it simple for now, maybe we can just trigger it here too.
-        // Actually the spec says "cronjob evaluates every minute". So we can just leave it out from here or send empty for now.
-        // I will remove the manual MQTT update here because cron handles it, or I can update it based on Phase 2.
+        // Aplicar el override de intensidad en el acto. El cron conserva esta
+        // configuración y gestiona los horarios, pero no debe haber hasta un
+        // minuto de espera al guardar desde LightManagement.
+        const lightCommand = {
+            override_intensity: Boolean(updatedSettings.light_override_intensity_enabled)
+        };
+
+        if (lightCommand.override_intensity) {
+            lightCommand.intensity = Number(updatedSettings.light_intensity_value);
+        }
+
+        mqttService.sendCommand(lightCommand);
         
         res.json(updatedSettings);
     } catch (error) {

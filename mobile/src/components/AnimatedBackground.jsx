@@ -22,7 +22,7 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false, isNeutral = fal
         if (width === 0 || height === 0) return;
 
         // Minimalist tech particles
-        const particleCount = 150; // Reduced for performance
+        const particleCount = 30;
         const newParticles = [];
 
         for (let i = 0; i < particleCount; i++) {
@@ -158,7 +158,7 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false, isNeutral = fal
                 
                 {/* Lines (Constellation) - Increased density back */}
                 {particlesRef.current.map((p1, i) => (
-                    particlesRef.current.slice(i + 1, i + 15).map((p2, j) => {
+                    particlesRef.current.slice(i + 1, i + 11).map((p2, j) => {
                         const dx = p1.x - p2.x;
                         const dy = p1.y - p2.y;
                         const distSq = dx * dx + dy * dy;
@@ -185,11 +185,6 @@ const AnimatedBackground = ({ isAlert = false, isDanger = false, isNeutral = fal
                         <Rect key={i} x={p.x} y={p.y} width={p.size} height={p.size} fill={dynamicColor} opacity={p.opacity} />
                     );
                 })}
-
-                {/* Bottom Snake Laser - Optimized */}
-                <Path d={laserPathD} stroke="rgba(255,255,255,0.02)" strokeWidth="15" fill="none" />
-                <Path d={laserPathD} stroke={dynamicColor} strokeWidth="2" fill="none" opacity={0.3} />
-                <Path d={laserPathD} stroke="#ffffff" strokeWidth="1" fill="none" opacity={0.8} />
             </Svg>
         </View>
     );

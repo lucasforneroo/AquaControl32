@@ -17,6 +17,7 @@ export const BLE_STATES = {
 
 const SERVICE_UUID = 'a1b2c3d4-e5f6-7890-1234-56789abcdef0';
 const CHARACTERISTIC_UUID = 'a1b2c3d4-e5f6-7890-1234-56789abcdef1';
+const DEVICE_NAME = 'AquaControl32-Setup';
 
 export function useBLEProvisioning() {
     const [bleState, setBleState] = useState(BLE_STATES.IDLE);
@@ -92,7 +93,18 @@ export function useBLEProvisioning() {
 
             if (!device) return;
 
-            console.log("========== DISPOSITIVO ==========");
+            // ── FILTRO: nos quedamos solo con nuestro ESP32 ─────────────
+            // Sin este filtro, el escaneo detecta CUALQUIER dispositivo
+            // BLE cercano (auriculares, relojes, etc.), muchos con
+            // name === null, lo cual rompía la UI más abajo.
+            const isOurDevice =
+                device.name === DEVICE_NAME ||
+                device.localName === DEVICE_NAME ||
+                (device.serviceUUIDs && device.serviceUUIDs.includes(SERVICE_UUID));
+
+            if (!isOurDevice) return;
+
+            console.log("========== DISPOSITIVO AQUACONTROL32 ==========");
             console.log("ID:", device.id);
             console.log("NAME:", device.name);
             console.log("LOCAL NAME:", device.localName);
@@ -149,11 +161,15 @@ const connectToDevice = async (device) => {
 
         console.log("CONECTADO");
 
-        await connected.discoverAllServicesAndCharacteristics();
+        const deviceWithMtu = await connected.requestMTU(247);
+
+        console.log("MTU negociado:", deviceWithMtu.mtu);
+
+        await deviceWithMtu.discoverAllServicesAndCharacteristics();
 
         console.log("Servicios descubiertos");
 
-        setConnectedDevice(connected);
+        setConnectedDevice(deviceWithMtu);
 
         setBleState(BLE_STATES.CONNECTED_AWAITING_INPUT);
 
@@ -163,10 +179,11 @@ const connectToDevice = async (device) => {
 
         console.log(e);
 
+        setErrorMsg('Failed to connect.');
         setBleState(BLE_STATES.FAILED);
 
     }
-}
+};
 
     const provisionDevice = async (ssid, password) => {
         console.log("Enviando:");
@@ -201,9 +218,13 @@ const connectToDevice = async (device) => {
 
                     if (characteristic?.value) {
 
-                        const response = JSON.parse(
-                            atob(characteristic.value)
-                        );
+                        let response;
+                        try {
+                            response = JSON.parse(atob(characteristic.value));
+                        } catch (e) {
+                            console.error("Invalid JSON from device:", e);
+                            return;
+                        }
 
                         if (response.status === "success") {
                             setBleState(BLE_STATES.PROVISIONED);
