@@ -6,7 +6,7 @@
 
 **Dispositivo IoT para el monitoreo de temperatura y la regulación automática de iluminación en acuarios**, basado en ESP32.
 
-Proyecto desarrollado por **Lucas Fornero** y **Julián Müller** para la cátedra de Ingeniería en Computación I — UNRaf (Rafaela, Santa Fe, Argentina).
+Proyecto desarrollado por **Lucas Fornero** para la cátedra de Ingeniería en Computación I — UNRaf (Rafaela, Santa Fe, Argentina).
 
 [![Demo en video](https://github.com/lucasforneroo/AquaControl32/raw/main/thumbnail.png)](https://youtu.be/jFxJrfuyzKE?feature=shared)
 
@@ -169,6 +169,3 @@ Se confirmó el correcto funcionamiento de la cadena completa: sensor → firmwa
 ## Autores
 
 - Lucas Fornero
-- Julián Müller
-
-Proyecto académico — Ingeniería en Computación I, UNRaf.
